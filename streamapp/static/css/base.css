@@ -1,0 +1,82 @@
+/* Base Styles */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+/* Animasi loading */
+.loader {
+    border-top-color: #e74c3c;
+    -webkit-animation: spinner 1.5s linear infinite;
+    animation: spinner 1.5s linear infinite;
+}
+
+@-webkit-keyframes spinner {
+    0% { -webkit-transform: rotate(0deg); }
+    100% { -webkit-transform: rotate(360deg); }
+}
+
+@keyframes spinner {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Notification styling */
+.notification {
+    position: fixed;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    max-height: screen;
+    width: full;
+    flex-direction: column-reverse;
+    padding: 1rem;
+}
+
+@media (min-width: 640px) {
+    .notification {
+        bottom: 0;
+        right: 0;
+        top: auto;
+        flex-direction: column;
+        max-width: 420px;
+    }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+.animate-fade-in-up {
+    animation: fadeInUp 0.3s ease-out forwards;
+}
+
+.animate-fade-out {
+    animation: fadeOut 0.5s ease-out forwards;
+}
+
+/* Hide scrollbar for elements with scrollbar-hide class */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

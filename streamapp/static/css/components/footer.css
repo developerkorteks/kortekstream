@@ -1,0 +1,83 @@
+/* Footer Styles */
+
+.footer {
+    background-color: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px);
+    padding: 1.5rem 0;
+    margin-top: 2.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.footer-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+}
+
+@media (min-width: 768px) {
+    .footer-content {
+        flex-direction: row;
+    }
+}
+
+.footer-brand {
+    margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+    .footer-brand {
+        margin-bottom: 0;
+    }
+}
+
+.footer-logo {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: white;
+}
+
+.footer-logo-highlight {
+    color: #dc2626;
+}
+
+.footer-tagline {
+    color: rgba(209, 213, 219, 1);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.footer-social {
+    display: flex;
+    gap: 1rem;
+}
+
+.footer-social-link {
+    color: rgba(156, 163, 175, 1);
+    transition: color 0.2s;
+}
+
+.footer-social-link:hover {
+    color: white;
+}
+
+.footer-legal {
+    margin-top: 1rem;
+    text-align: center;
+    color: rgba(156, 163, 175, 1);
+    font-size: 0.875rem;
+}
+
+.footer-copyright {
+    margin-bottom: 0.25rem;
+}
+
+.footer-disclaimer {
+    margin-top: 0.25rem;
+}

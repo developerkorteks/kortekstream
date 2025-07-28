@@ -1,0 +1,63 @@
+/* Theme Colors */
+:root {
+    /* Light mode colors */
+    --primary-light: #ffd700;
+    --primary: #daa520;
+    --primary-dark: #b8860b;
+    --secondary-light: #ffffff;
+    --secondary: #f8f9fa;
+    --secondary-dark: #e9ecef;
+    
+    /* Dark mode colors */
+    --dark-primary-light: #f87171;
+    --dark-primary: #dc2626;
+    --dark-primary-dark: #b91c1c;
+    --dark-secondary-light: #1a1a1a;
+    --dark-secondary: #121212;
+    --dark-secondary-dark: #000000;
+}
+
+/* Background for light and dark mode */
+body {
+    background: #ffffff;
+    color: #000000;
+    background-attachment: fixed;
+}
+
+.dark body {
+    background: linear-gradient(to bottom right, #000000, #450a0a, #000000);
+    background-attachment: fixed;
+    color: #ffffff;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+    background: #121212;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+    background: #e74c3c;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background: #ff4d4d;
+}
+
+/* Light mode scrollbar */
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Theme transition */
+.theme-transition {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}

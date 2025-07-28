@@ -1,0 +1,197 @@
+/* Tabs Component Styles */
+
+.tabs-container {
+    margin-bottom: 2rem;
+}
+
+.tabs-header {
+    border-bottom: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+.dark .tabs-header {
+    border-bottom-color: rgba(75, 85, 99, 0.5);
+}
+
+.tabs-list {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: -1px;
+}
+
+.tabs-item {
+    margin-right: 0.5rem;
+}
+
+.tabs-button {
+    display: inline-flex;
+    align-items: center;
+    padding: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: center;
+    border-bottom: 2px solid transparent;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+    transition: all 0.2s;
+}
+
+.tabs-button-icon {
+    margin-right: 0.5rem;
+}
+
+.tabs-button.active {
+    border-bottom-color: var(--primary);
+    color: var(--primary);
+}
+
+.dark .tabs-button.active {
+    border-bottom-color: var(--dark-primary);
+    color: var(--dark-primary);
+}
+
+.tabs-button:hover:not(.active) {
+    color: rgba(107, 114, 128, 0.8);
+    border-bottom-color: rgba(107, 114, 128, 0.3);
+}
+
+.dark .tabs-button:hover:not(.active) {
+    color: rgba(209, 213, 219, 0.8);
+    border-bottom-color: rgba(209, 213, 219, 0.3);
+}
+
+/* Tab Content */
+.tabs-content {
+    margin-top: 1.5rem;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+/* Tab Panel Header */
+.tab-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.tab-panel-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: rgba(31, 41, 55, 1);
+}
+
+.dark .tab-panel-title {
+    color: white;
+}
+
+.tab-panel-action {
+    padding: 0.5rem 1rem;
+    background-color: #dc2626;
+    color: white;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.2s;
+}
+
+.tab-panel-action:hover {
+    background-color: #b91c1c;
+}
+
+.dark .tab-panel-action {
+    background-color: #dc2626;
+}
+
+.dark .tab-panel-action:hover {
+    background-color: #b91c1c;
+}
+
+.tab-panel-action-icon {
+    margin-right: 0.5rem;
+}
+
+/* Tab Panel Content */
+.tab-panel-content {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+    .tab-panel-content {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 768px) {
+    .tab-panel-content {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .tab-panel-content {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+/* Empty State */
+.tab-panel-empty {
+    text-align: center;
+    padding: 3rem 0;
+    grid-column: 1 / -1;
+}
+
+.tab-panel-empty-icon {
+    font-size: 3rem;
+    color: rgba(209, 213, 219, 0.5);
+    margin-bottom: 1rem;
+}
+
+.dark .tab-panel-empty-icon {
+    color: rgba(75, 85, 99, 0.5);
+}
+
+.tab-panel-empty-text {
+    color: rgba(107, 114, 128, 1);
+    margin-bottom: 0.5rem;
+}
+
+.dark .tab-panel-empty-text {
+    color: rgba(156, 163, 175, 1);
+}
+
+.tab-panel-empty-subtext {
+    color: rgba(107, 114, 128, 1);
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.dark .tab-panel-empty-subtext {
+    color: rgba(156, 163, 175, 1);
+}
+
+/* Loading State */
+.tab-panel-loading {
+    text-align: center;
+    padding: 3rem 0;
+    grid-column: 1 / -1;
+    color: rgba(107, 114, 128, 1);
+}
+
+.dark .tab-panel-loading {
+    color: rgba(156, 163, 175, 1);
+}
+
+.tab-panel-loading-icon {
+    font-size: 1.875rem;
+    margin-bottom: 1rem;
+}

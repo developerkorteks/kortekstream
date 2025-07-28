@@ -1,0 +1,203 @@
+/* Navbar Styles */
+
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background-color: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.navbar-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.navbar-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Logo */
+.navbar-logo {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.navbar-logo-text {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+}
+
+.navbar-logo-highlight {
+    color: #dc2626;
+}
+
+/* Navigation Links */
+.navbar-links {
+    display: none;
+    margin-left: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .navbar-links {
+        display: flex;
+        gap: 1rem;
+    }
+}
+
+.navbar-link {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: white;
+    transition: background-color 0.2s;
+}
+
+.navbar-link:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Right Side Items */
+.navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Search Bar */
+.navbar-search {
+    position: relative;
+    flex: 1;
+    max-width: 20rem;
+}
+
+.navbar-search-input {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.navbar-search-input::placeholder {
+    color: rgba(156, 163, 175, 1);
+}
+
+.navbar-search-input:focus {
+    outline: none;
+    ring: 2px;
+    ring-color: #dc2626;
+}
+
+.navbar-search-button {
+    position: absolute;
+    right: 0;
+    top: 0;
+    margin-top: 0.5rem;
+    margin-right: 0.75rem;
+    color: rgba(156, 163, 175, 1);
+}
+
+.navbar-search-button:hover {
+    color: white;
+}
+
+/* Icon Buttons */
+.navbar-icon-button {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: background-color 0.2s;
+}
+
+.navbar-icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.navbar-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+/* Mobile Menu Button */
+.navbar-mobile-button {
+    display: flex;
+}
+
+@media (min-width: 768px) {
+    .navbar-mobile-button {
+        display: none;
+    }
+}
+
+/* Mobile Menu */
+.navbar-mobile-menu {
+    display: none;
+    margin-top: 1rem;
+}
+
+.navbar-mobile-menu.active {
+    display: block;
+}
+
+.navbar-mobile-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.navbar-mobile-link {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: white;
+    transition: background-color 0.2s;
+}
+
+.navbar-mobile-link:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile Collection Links */
+.navbar-mobile-collection {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.navbar-mobile-collection-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: background-color 0.2s;
+}
+
+.navbar-mobile-collection-link:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.navbar-mobile-collection-icon {
+    margin-bottom: 0.25rem;
+}
