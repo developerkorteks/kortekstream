@@ -11,8 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 import os
 from pathlib import Path
-from dotenv import load_dotenv
-load_dotenv()
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -21,17 +20,17 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
     'https://kortekstream.sgp.dom.my.id',
     'https://mirrorfast.my.id',
+    'https://true-undefined-lon.sgp.my.id'
 ]
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY')
-
+SECRET_KEY = "fs5)l2(@@el_yd9t1wit&mm-9j)j-p#7blowst^mkd%b5^=*!l" 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "*", "kortekstream.sgp.dom.my.id", "mirrorfast.my.id"]
+ALLOWED_HOSTS = ["true-undefined-lon.sgp.my.id","localhost", "127.0.0.1", "*", "kortekstream.sgp.dom.my.id", "mirrorfast.my.id"]
 
 
 # Application definition
