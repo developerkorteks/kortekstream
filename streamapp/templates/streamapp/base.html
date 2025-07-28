@@ -1,0 +1,667 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}KortekStream{% endblock %}</title>
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:image" content="https://cdn.builder.io/api/v1/image/assets%2Fc5b47d20f6a943e485717e5895739988%2F56c6badd41c34fbbadac34159211505e">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="KortekStream - Nonton Anime Subtitle Indonesia">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://cdn.builder.io/api/v1/image/assets%2Fc5b47d20f6a943e485717e5895739988%2F56c6badd41c34fbbadac34159211505e">
+    <meta name="twitter:image:alt" content="KortekStream - Nonton Anime Subtitle Indonesia">
+    
+    <!-- Tailwind CSS -->
+    <!-- Gunakan CDN untuk development, uncomment output.css untuk production dengan Tailwind CLI -->
+    {% comment %} <script src="https://cdn.tailwindcss.com"></script> {% endcomment %}
+    <link rel="stylesheet" href="{% static 'css/output.css' %}">
+    
+    <!-- Konfigurasi Tailwind untuk tema baru -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        // Warna utama yang konsisten untuk light dan dark mode
+                        primary: {
+                            light: '#ffd700', // gold untuk light mode
+                            DEFAULT: '#daa520', // goldenrod untuk light mode
+                            dark: '#b8860b', // darkgoldenrod untuk light mode
+                        },
+                        // Warna background dan text
+                        page: {
+                            light: '#ffffff', // background light mode
+                            DEFAULT: '#f8f9fa', // background light mode
+                            dark: '#121212', // background dark mode
+                        },
+                        content: {
+                            light: '#1a1a1a', // text light mode
+                            DEFAULT: '#000000', // text light mode
+                            dark: '#ffffff', // text dark mode
+                        },
+                    },
+                    backdropBlur: {
+                        xs: '2px',
+                        sm: '4px',
+                        md: '8px',
+                        lg: '12px',
+                        xl: '16px',
+                    },
+                    animation: {
+                        'gradient-x': 'gradient-x 3s ease infinite',
+                        'gradient-y': 'gradient-y 3s ease infinite',
+                        'gradient-xy': 'gradient-xy 3s ease infinite',
+                    },
+                    keyframes: {
+                        'gradient-x': {
+                            '0%, 100%': {
+                                'background-size': '200% 200%',
+                                'background-position': 'left center'
+                            },
+                            '50%': {
+                                'background-size': '200% 200%',
+                                'background-position': 'right center'
+                            }
+                        },
+                    },
+                }
+            },
+            // Pastikan kelas kustom dipertahankan saat menggunakan Tailwind CLI
+            safelist: [
+                'light-bg',
+                'light-text',
+                'light-border',
+                'dark:light-bg',
+                'dark:light-text',
+                'dark:light-border'
+            ]
+        }
+    </script>
+    
+    <!-- Font Awesome untuk ikon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        /* Animasi loading */
+        .loader {
+            border-top-color: #e74c3c;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        
+        @-webkit-keyframes spinner {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+        
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Efek hover untuk card anime */
+        .anime-card {
+            transition: all 0.3s ease;
+        }
+        
+        .anime-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        /* Scrollbar custom */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Dark mode scrollbar */
+        .dark ::-webkit-scrollbar-track {
+            background: #121212;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb {
+            background: #e74c3c;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #ff4d4d;
+        }
+        
+        /* Efek blur untuk hero section */
+        .hero-overlay {
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.7) 100%);
+        }
+        
+        /* Animasi untuk tema */
+        .theme-transition {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        /* Background untuk light dan dark mode */
+        body {
+            background: #ffffff;
+            color: #000000;
+            background-attachment: fixed;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        .dark body {
+            background: linear-gradient(to bottom right, #000000, #450a0a, #000000);
+            background-attachment: fixed;
+            color: #ffffff;
+        }
+        
+        /* Light mode specific styles - Kompatibel dengan Tailwind CLI */
+        /* Kelas-kelas ini harus ditambahkan ke safelist di tailwind.config.js */
+        .light-bg {
+            background-color: rgba(255, 255, 255, 0.95) !important;
+            border-color: #daa520 !important; /* Border kuning keemasan */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+        }
+        
+        .dark .light-bg {
+            background-color: rgba(0, 0, 0, 0.3) !important;
+            border-color: rgba(75, 85, 99, 0.5) !important;
+            box-shadow: none !important;
+        }
+        
+        .light-text {
+            color: #000000 !important;
+            font-weight: 500 !important;
+        }
+        
+        .dark .light-text {
+            color: #ffffff !important;
+            font-weight: normal !important;
+        }
+        
+        .light-border {
+            border-color: #daa520 !important; /* Border kuning keemasan */
+            border-width: 1px !important;
+        }
+        
+        .dark .light-border {
+            border-color: rgba(75, 85, 99, 0.5) !important;
+            border-width: 1px !important;
+        }
+        
+        /* Alternatif menggunakan kelas Tailwind standar */
+        /* Gunakan kelas-kelas ini sebagai alternatif jika light-bg, light-text, light-border tidak berfungsi */
+        .tw-light-bg {
+            @apply bg-white/95 border-primary shadow-md;
+        }
+        
+        .dark .tw-light-bg {
+            @apply bg-black/30 border-gray-500/50 shadow-none;
+        }
+        
+        .tw-light-text {
+            @apply text-black font-medium;
+        }
+        
+        .dark .tw-light-text {
+            @apply text-white font-normal;
+        }
+        
+        .tw-light-border {
+            @apply border-primary border;
+        }
+        
+        .dark .tw-light-border {
+            @apply border-gray-500/50 border;
+        }
+        
+        /* Styling untuk notifikasi */
+        .notification {
+            position: fixed;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            max-height: screen;
+            width: full;
+            flex-direction: column-reverse;
+            padding: 1rem;
+        }
+        
+        @media (min-width: 640px) {
+            .notification {
+                bottom: 0;
+                right: 0;
+                top: auto;
+                flex-direction: column;
+                max-width: 420px;
+            }
+        }
+        
+        /* Efek hover dinamis untuk card anime */
+        .dynamic-border:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+    
+    <!-- CSS tambahan untuk memastikan ikon toggle tema berfungsi dengan benar -->
+    <style>
+        /* Memastikan ikon matahari hanya muncul di light mode */
+        html:not(.dark) .fa-sun {
+            display: inline-block !important;
+        }
+        html:not(.dark) .fa-moon {
+            display: none !important;
+        }
+        
+        /* Memastikan ikon bulan hanya muncul di dark mode */
+        html.dark .fa-sun {
+            display: none !important;
+        }
+        html.dark .fa-moon {
+            display: inline-block !important;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="theme-transition min-h-screen flex flex-col dark:text-white text-black">
+    <!-- Navbar -->
+    <nav class="sticky top-0 z-50 bg-black/20 backdrop-blur-md border-b border-white/10 dark:bg-black/20 dark:border-white/10">
+        <div class="container mx-auto px-4 py-3 sm:py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center">
+                    <!-- Logo -->
+                    <a href="{% url 'streamapp:index' %}" class="flex-shrink-0 flex items-center">
+                        <span class="text-xl sm:text-2xl font-bold text-black dark:text-white">🎌 Kortek<span class="text-red-500">Stream</span></span>
+                    </a>
+                    
+                    <!-- Desktop Navigation Links - Hanya tampil pada ukuran large (lg) dan lebih besar -->
+                    <div class="hidden lg:ml-6 lg:flex lg:space-x-4">
+                        <a href="{% url 'streamapp:index' %}" class="px-3 py-2 rounded-md text-sm font-medium text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">Beranda</a>
+                        <a href="{% url 'streamapp:all_list_anime_terbaru' %}" class="px-3 py-2 rounded-md text-sm font-medium text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">Anime Terbaru</a>
+                        <a href="{% url 'streamapp:all_list_jadwal_rilis' %}" class="px-3 py-2 rounded-md text-sm font-medium text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">Jadwal Rilis</a>
+                        <a href="{% url 'streamapp:all_list_movie' %}" class="px-3 py-2 rounded-md text-sm font-medium text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">Movie</a>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
+                    <!-- Search Bar - Tampil pada ukuran medium (md) dan lebih besar -->
+                    <div class="hidden md:block relative flex-1 max-w-md">
+                        <form action="{% url 'streamapp:search' %}" method="GET" class="flex items-center">
+                            <input type="text" name="q" placeholder="Cari anime..."
+                                class="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-white/80 dark:bg-white/10 backdrop-blur-md border border-primary/30 dark:border-white/20 text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-red-500 text-sm" required>
+                            <button type="submit" class="absolute right-0 top-0 mt-1.5 sm:mt-2 mr-3 text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- Search Icon untuk Mobile dan Tablet -->
+                    <button id="mobile-search-button" class="md:hidden text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 w-9 h-9 rounded-full flex items-center justify-center transition-colors">
+                        <i class="fas fa-search w-4 h-4"></i>
+                    </button>
+                    
+                    <!-- Collection Links - Tampil pada ukuran medium (md) dan lebih besar -->
+                    <div class="hidden md:flex space-x-1 md:space-x-2">
+                        <a href="{% url 'streamapp:user_collection' %}?tab=watchlist" class="text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors">
+                            <i class="fas fa-bookmark w-4 h-4 md:w-5 md:h-5"></i>
+                        </a>
+                        
+                        <a href="{% url 'streamapp:user_collection' %}?tab=favorites" class="text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors">
+                            <i class="fas fa-heart w-4 h-4 md:w-5 md:h-5"></i>
+                        </a>
+                        
+                        <a href="{% url 'streamapp:user_collection' %}?tab=history" class="text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors">
+                            <i class="fas fa-clock w-4 h-4 md:w-5 md:h-5"></i>
+                        </a>
+                    </div>
+                    
+                    <!-- Theme Toggle - Selalu tampil -->
+                    <button id="theme-toggle" class="text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors">
+                        <!-- Ikon matahari (tampil di light mode, sembunyi di dark mode) -->
+                        <i class="fas fa-sun w-4 h-4 md:w-5 md:h-5 inline-block dark:hidden"></i>
+                        <!-- Ikon bulan (sembunyi di light mode, tampil di dark mode) -->
+                        <i class="fas fa-moon w-4 h-4 md:w-5 md:h-5 hidden dark:inline-block"></i>
+                    </button>
+                    
+                    <!-- Mobile menu button - Tampil pada ukuran di bawah large (lg) -->
+                    <button id="mobile-menu-button" class="lg:hidden text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors">
+                        <i class="fas fa-bars w-4 h-4 md:w-5 md:h-5"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mobile Search Bar (initially hidden) -->
+            <div id="mobile-search" class="md:hidden hidden mt-3 mb-2">
+                <form action="{% url 'streamapp:search' %}" method="GET" class="flex items-center">
+                    <div class="relative w-full">
+                        <input type="text" name="q" placeholder="Cari anime..."
+                            class="w-full px-3 py-2 rounded-lg bg-white/80 dark:bg-white/10 backdrop-blur-md border border-primary/30 dark:border-white/20 text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary dark:focus:ring-red-500 text-sm" required>
+                        <button type="submit" class="absolute right-0 top-0 mt-2 mr-3 text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Mobile Navigation Menu -->
+            <div id="mobile-menu" class="lg:hidden hidden mt-3 pb-2 border-t border-gray-200 dark:border-gray-700/30 pt-2">
+                <div class="flex flex-col space-y-2">
+                    <a href="{% url 'streamapp:index' %}" class="px-3 py-2 rounded-md text-base font-medium text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">
+                        <i class="fas fa-home mr-2"></i>Beranda
+                    </a>
+                    <a href="{% url 'streamapp:all_list_anime_terbaru' %}" class="px-3 py-2 rounded-md text-base font-medium text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">
+                        <i class="fas fa-fire mr-2"></i>Anime Terbaru
+                    </a>
+                    <a href="{% url 'streamapp:all_list_jadwal_rilis' %}" class="px-3 py-2 rounded-md text-base font-medium text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">
+                        <i class="fas fa-calendar mr-2"></i>Jadwal Rilis
+                    </a>
+                    <a href="{% url 'streamapp:all_list_movie' %}" class="px-3 py-2 rounded-md text-base font-medium text-black dark:text-white hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">
+                        <i class="fas fa-film mr-2"></i>Movie
+                    </a>
+                    
+                    <!-- Collection Links untuk Mobile dan Tablet (md) -->
+                    <div class="md:hidden grid grid-cols-3 gap-2 mt-2">
+                        <a href="{% url 'streamapp:user_collection' %}?tab=watchlist" class="flex flex-col items-center justify-center px-3 py-2 rounded-md text-sm font-medium text-black dark:text-white bg-primary/10 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">
+                            <i class="fas fa-bookmark mb-1"></i>
+                            <span>Watchlist</span>
+                        </a>
+                        <a href="{% url 'streamapp:user_collection' %}?tab=favorites" class="flex flex-col items-center justify-center px-3 py-2 rounded-md text-sm font-medium text-black dark:text-white bg-primary/10 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">
+                            <i class="fas fa-heart mb-1"></i>
+                            <span>Favorit</span>
+                        </a>
+                        <a href="{% url 'streamapp:user_collection' %}?tab=history" class="flex flex-col items-center justify-center px-3 py-2 rounded-md text-sm font-medium text-black dark:text-white bg-primary/10 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">
+                            <i class="fas fa-clock mb-1"></i>
+                            <span>Riwayat</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-white/80 dark:bg-black/30 backdrop-blur-md py-6 mt-10 border-t border-primary/30 dark:border-white/10">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <span class="text-xl font-bold text-black dark:text-white">🎌 Kortek<span class="text-red-500">Stream</span></span>
+                    <p class="text-gray-600 dark:text-gray-300 text-sm mt-1">Nonton Anime Subtitle Indonesia</p>
+                </div>
+                
+                <div class="flex space-x-4">
+                    <a href="#" class="text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors">
+                        <i class="fab fa-facebook-f"></i>
+                    </a>
+                    <a href="#" class="text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                    <a href="#" class="text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                    <a href="#" class="text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white transition-colors">
+                        <i class="fab fa-discord"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="mt-4 text-center text-gray-600 dark:text-gray-400 text-sm">
+                <p>&copy; 2025 KortekStream. Semua hak dilindungi.</p>
+                <p class="mt-1">Disclaimer: Semua konten anime yang ditampilkan di situs ini bersumber dari pihak ketiga.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- JavaScript -->
+    <script>
+        // Toggle mobile menu - Untuk ukuran layar di bawah large (lg)
+        document.getElementById('mobile-menu-button').addEventListener('click', function() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+            
+            // Close mobile search if open
+            const mobileSearch = document.getElementById('mobile-search');
+            if (mobileSearch && !mobileSearch.classList.contains('hidden')) {
+                mobileSearch.classList.add('hidden');
+            }
+            
+            // Log untuk debugging
+            console.log('Mobile menu toggled:', !mobileMenu.classList.contains('hidden'));
+        });
+        
+        // Toggle mobile search - Untuk ukuran layar di bawah medium (md)
+        const mobileSearchButton = document.getElementById('mobile-search-button');
+        if (mobileSearchButton) {
+            mobileSearchButton.addEventListener('click', function() {
+                const mobileSearch = document.getElementById('mobile-search');
+                mobileSearch.classList.toggle('hidden');
+                
+                // Focus the search input when shown
+                if (!mobileSearch.classList.contains('hidden')) {
+                    setTimeout(() => {
+                        mobileSearch.querySelector('input').focus();
+                    }, 100);
+                    
+                    // Close mobile menu if open
+                    const mobileMenu = document.getElementById('mobile-menu');
+                    if (!mobileMenu.classList.contains('hidden')) {
+                        mobileMenu.classList.add('hidden');
+                    }
+                    
+                    // Log untuk debugging
+                    console.log('Mobile search shown and focused');
+                } else {
+                    console.log('Mobile search hidden');
+                }
+            });
+        }
+        
+        // Menangani perubahan ukuran layar untuk responsivitas
+        window.addEventListener('resize', function() {
+            const width = window.innerWidth;
+            const mobileMenu = document.getElementById('mobile-menu');
+            const mobileSearch = document.getElementById('mobile-search');
+            
+            // Jika ukuran layar >= 1024px (lg), sembunyikan mobile menu
+            if (width >= 1024 && mobileMenu && !mobileMenu.classList.contains('hidden')) {
+                mobileMenu.classList.add('hidden');
+                console.log('Mobile menu hidden due to large screen size');
+            }
+            
+            // Jika ukuran layar >= 768px (md), sembunyikan mobile search
+            if (width >= 768 && mobileSearch && !mobileSearch.classList.contains('hidden')) {
+                mobileSearch.classList.add('hidden');
+                console.log('Mobile search hidden due to medium screen size');
+            }
+        });
+        
+        // Toggle theme (light/dark)
+        document.getElementById('theme-toggle').addEventListener('click', function() {
+            console.log('Toggle theme clicked');
+            console.log('Before toggle - Dark mode:', document.documentElement.classList.contains('dark'));
+            
+            document.documentElement.classList.toggle('dark');
+            
+            console.log('After toggle - Dark mode:', document.documentElement.classList.contains('dark'));
+            console.log('Sun icon display:', getComputedStyle(document.querySelector('.fa-sun')).display);
+            console.log('Moon icon display:', getComputedStyle(document.querySelector('.fa-moon')).display);
+            
+            // Save theme preference to localStorage
+            if (document.documentElement.classList.contains('dark')) {
+                localStorage.setItem('theme', 'dark');
+                console.log('Theme set to dark in localStorage');
+            } else {
+                localStorage.setItem('theme', 'light');
+                console.log('Theme set to light in localStorage');
+            }
+        });
+        
+        // Function to check if user prefers dark mode
+        function userPrefersDarkMode() {
+            return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        }
+        
+        // Set theme based on user preference or saved preference
+        function setThemePreference() {
+            // Check if theme is saved in localStorage
+            const savedTheme = localStorage.getItem('theme');
+            
+            if (savedTheme) {
+                // Use saved preference
+                if (savedTheme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            } else {
+                // No saved preference, check system preference
+                if (userPrefersDarkMode()) {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                }
+            }
+        }
+        
+        // Set theme on page load
+        setThemePreference();
+        
+        // Listen for changes in system preference
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                if (!localStorage.getItem('theme')) {
+                    if (event.matches) {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            });
+        }
+        
+        // Handle tab selection in user_collection page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if we're on the user_collection page
+            const collectionTabs = document.getElementById('collection-tabs');
+            if (collectionTabs) {
+                // Get the tab from URL parameter or default to watchlist
+                const urlParams = new URLSearchParams(window.location.search);
+                const activeTab = urlParams.get('tab') || 'watchlist';
+                
+                // Find the tab button and simulate a click
+                const tabButton = document.getElementById(`${activeTab}-tab`);
+                if (tabButton) {
+                    tabButton.click();
+                }
+            }
+        });
+        
+        // Dynamic border color based on cover image
+        function setDynamicBorderColor(cardElement, imageElement) {
+            if (!cardElement || !imageElement) return;
+            
+            // Create canvas to analyze image
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            
+            // When image is loaded
+            imageElement.addEventListener('load', function() {
+                canvas.width = this.width;
+                canvas.height = this.height;
+                context.drawImage(this, 0, 0, this.width, this.height);
+                
+                // Get pixel data from the center of the image
+                const imageData = context.getImageData(
+                    Math.floor(this.width / 2), 
+                    Math.floor(this.height / 2), 
+                    1, 1
+                ).data;
+                
+                // Convert RGB to hex
+                const color = `#${imageData[0].toString(16).padStart(2, '0')}${imageData[1].toString(16).padStart(2, '0')}${imageData[2].toString(16).padStart(2, '0')}`;
+                
+                // Apply color to card border on hover
+                cardElement.addEventListener('mouseenter', function() {
+                    this.style.borderColor = color;
+                    this.querySelector('.title').style.color = color;
+                });
+                
+                cardElement.addEventListener('mouseleave', function() {
+                    this.style.borderColor = '';
+                    this.querySelector('.title').style.color = '';
+                });
+            });
+        }
+        
+        // Apply dynamic border to all anime cards
+        document.addEventListener('DOMContentLoaded', function() {
+            const animeCards = document.querySelectorAll('.anime-card');
+            animeCards.forEach(card => {
+                const image = card.querySelector('img');
+                if (image) {
+                    setDynamicBorderColor(card, image);
+                }
+            });
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+    
+    <!-- Panduan untuk Tailwind CLI -->
+    <!--
+    Jika menggunakan Tailwind CLI dan light mode rusak, ganti kelas kustom dengan kelas Tailwind standar:
+    
+    1. Ganti 'light-bg' dengan kombinasi kelas Tailwind berikut:
+       - Light mode: 'bg-white/95 border-yellow-600 shadow-md'
+       - Dark mode: 'dark:bg-black/30 dark:border-gray-500/50 dark:shadow-none'
+       
+    2. Ganti 'light-text' dengan:
+       - Light mode: 'text-black font-medium'
+       - Dark mode: 'dark:text-white dark:font-normal'
+       
+    3. Ganti 'light-border' dengan:
+       - Light mode: 'border-yellow-600 border'
+       - Dark mode: 'dark:border-gray-500/50 dark:border'
+       
+    Contoh:
+    Dari:
+    <div class="light-bg light-text light-border">...</div>
+    
+    Menjadi:
+    <div class="bg-white/95 border-yellow-600 shadow-md dark:bg-black/30 dark:border-gray-500/50 dark:shadow-none text-black font-medium dark:text-white dark:font-normal border-yellow-600 border dark:border-gray-500/50 dark:border">...</div>
+    
+    Atau lebih sederhana:
+    <div class="bg-white/95 border-yellow-600 shadow-md text-black font-medium border dark:bg-black/30 dark:border-gray-500/50 dark:shadow-none dark:text-white dark:font-normal">...</div>
+    
+    4. Jalankan build dengan: npx tailwindcss -i ./static/css/input.css -o ./static/css/output.css
+    
+    5. Jika masih bermasalah, kembali ke Tailwind CDN dengan menghapus komentar pada:
+       <script src="https://cdn.tailwindcss.com"></script>
+       dan menambahkan komentar pada:
+       <link rel="stylesheet" href="{% static 'css/output.css' %}">
+    -->
+</body>
+</html>
