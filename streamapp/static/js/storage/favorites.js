@@ -151,10 +151,22 @@ function toggleFavorite(title, slug, cover) {
  * @param {string} containerId - ID of container element
  */
 function loadFavorites(containerId = 'favorites-container') {
+    // Log untuk verifikasi perubahan
+    console.log("Memuat favorit dengan link ke detail anime");
+    
     const container = document.getElementById(containerId);
     if (!container) return;
     
     const favorites = getFavorites();
+    
+    // Log untuk memverifikasi data favorit
+    if (favorites.length > 0) {
+        console.log("Contoh item favorit pertama:", {
+            title: favorites[0].title,
+            slug: favorites[0].slug,
+            linkDetailAnime: `/anime/${favorites[0].slug}`
+        });
+    }
     
     if (favorites.length === 0) {
         container.innerHTML = `
@@ -174,7 +186,8 @@ function loadFavorites(containerId = 'favorites-container') {
     favorites.forEach(item => {
         html += `
             <div class="anime-card dynamic-border bg-white dark:bg-darkSecondary rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 dark:border-gray-700">
-                <a href="/detail_anime/${item.slug}" class="block">
+                <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block"
+                   onclick="console.log('Navigasi ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
                     <div class="relative pb-[140%] overflow-hidden">
                         <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
                         

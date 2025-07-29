@@ -118,10 +118,28 @@ function getAnimeWatchHistory(animeSlug) {
  * @param {string} containerId - ID of container element
  */
 function loadWatchHistory(containerId = 'history-container') {
+    // Log untuk verifikasi perubahan
+    console.log("Memuat riwayat tontonan dengan link ke detail anime");
+    
     const container = document.getElementById(containerId);
     if (!container) return;
     
     const history = getWatchHistory();
+    
+    // Log untuk memverifikasi data riwayat
+    if (history.length > 0) {
+        console.log("Contoh item riwayat pertama:", {
+            title: history[0].title,
+            slug: history[0].slug,
+            rawSlug: history[0].slug,
+            linkDetailAnime: `/anime/${history[0].slug}`
+        });
+        
+        // Periksa apakah slug mengandung '/anime/'
+        if (history[0].slug.includes('/anime/')) {
+            console.error("⚠️ Slug mengandung '/anime/' di dalamnya, ini akan menyebabkan double path di URL");
+        }
+    }
     
     if (history.length === 0) {
         container.innerHTML = `
@@ -138,7 +156,8 @@ function loadWatchHistory(containerId = 'history-container') {
     history.forEach(item => {
         html += `
             <div class="anime-card dynamic-border bg-white dark:bg-darkSecondary rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 dark:border-gray-700">
-                <a href="/detail_episode_video/${item.episodeSlug}" class="block">
+                <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block"
+                   onclick="console.log('Navigasi ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
                     <div class="relative pb-[140%] overflow-hidden">
                         <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
                         

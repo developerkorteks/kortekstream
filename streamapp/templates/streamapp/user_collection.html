@@ -200,7 +200,8 @@
         watchlist.forEach(item => {
             html += `
                 <div class="anime-card dynamic-border light-bg rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 light-border">
-                    <a href="/detail_anime/${item.slug}" class="block">
+                    <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block"
+                       onclick="console.log('Navigasi watchlist ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
                         <div class="relative pb-[140%] overflow-hidden">
                             <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
                             
@@ -278,7 +279,8 @@
         favorites.forEach(item => {
             html += `
                 <div class="anime-card dynamic-border light-bg rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 light-border">
-                    <a href="/detail_anime/${item.slug}" class="block">
+                    <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block"
+                       onclick="console.log('Navigasi favorit ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
                         <div class="relative pb-[140%] overflow-hidden">
                             <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
                             
@@ -353,7 +355,8 @@
         history.forEach(item => {
             html += `
                 <div class="anime-card dynamic-border light-bg rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 light-border">
-                    <a href="/detail_episode_video/${item.episodeSlug}" class="block">
+                    <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block"
+                       onclick="console.log('Navigasi riwayat ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
                         <div class="relative pb-[140%] overflow-hidden">
                             <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
                             
@@ -462,4 +465,55 @@
         animation: fadeOut 0.5s ease-out forwards;
     }
 </style>
+
+<!-- Script untuk verifikasi link riwayat tontonan, watchlist, dan favorit -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fungsi untuk memverifikasi link di container
+        function verifyLinks(containerId, containerName) {
+            // Tunggu sampai konten dimuat
+            setTimeout(() => {
+                // Cari semua link di container
+                const links = document.querySelectorAll(`#${containerId} a.block`);
+                
+                // Log jumlah link yang ditemukan
+                console.log(`Ditemukan ${links.length} item di ${containerName}`);
+                
+                // Tambahkan event listener untuk setiap link
+                links.forEach(link => {
+                    console.log(`Link ${containerName}: ${link.href}`);
+                    
+                    // Verifikasi bahwa link mengarah ke detail anime, bukan detail episode
+                    if (link.href.includes('/anime/')) {
+                        console.log(`✅ Link ${containerName} sudah benar mengarah ke detail anime`);
+                        
+                        // Periksa apakah ada double path di URL
+                        if (link.href.includes('/anime//anime/')) {
+                            console.error(`❌ Link ${containerName} memiliki double path (/anime//anime/)`);
+                        }
+                    } else if (link.href.includes('/episode/')) {
+                        console.error(`❌ Link ${containerName} masih mengarah ke detail episode`);
+                    } else if (link.href.includes('/detail_anime/')) {
+                        console.error(`❌ Link ${containerName} masih menggunakan format URL lama (/detail_anime/)`);
+                    }
+                    
+                    // Tambahkan event listener untuk mencegah navigasi saat pengujian
+                    link.addEventListener('click', function(e) {
+                        // Hanya untuk pengujian, mencegah navigasi
+                        if (e.ctrlKey) {
+                            e.preventDefault();
+                            console.log(`Pengujian: Klik pada ${this.href} akan mengarahkan ke detail anime`);
+                            alert(`Link akan mengarahkan ke: ${this.href}`);
+                        }
+                    });
+                });
+            }, 1000); // Tunggu 1 detik untuk memastikan konten sudah dimuat
+        }
+        
+        // Verifikasi link di semua container
+        verifyLinks('history-container', 'riwayat tontonan');
+        verifyLinks('watchlist-container', 'watchlist');
+        verifyLinks('favorites-container', 'favorit');
+    });
+</script>
 {% endblock %}

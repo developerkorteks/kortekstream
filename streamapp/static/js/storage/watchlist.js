@@ -151,10 +151,22 @@ function toggleWatchlist(title, slug, cover) {
  * @param {string} containerId - ID of container element
  */
 function loadWatchlist(containerId = 'watchlist-container') {
+    // Log untuk verifikasi perubahan
+    console.log("Memuat watchlist dengan link ke detail anime");
+    
     const container = document.getElementById(containerId);
     if (!container) return;
     
     const watchlist = getWatchlist();
+    
+    // Log untuk memverifikasi data watchlist
+    if (watchlist.length > 0) {
+        console.log("Contoh item watchlist pertama:", {
+            title: watchlist[0].title,
+            slug: watchlist[0].slug,
+            linkDetailAnime: `/anime/${watchlist[0].slug}`
+        });
+    }
     
     if (watchlist.length === 0) {
         container.innerHTML = `
@@ -174,7 +186,8 @@ function loadWatchlist(containerId = 'watchlist-container') {
     watchlist.forEach(item => {
         html += `
             <div class="anime-card dynamic-border bg-white dark:bg-darkSecondary rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 dark:border-gray-700">
-                <a href="/detail_anime/${item.slug}" class="block">
+                <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block"
+                   onclick="console.log('Navigasi ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
                     <div class="relative pb-[140%] overflow-hidden">
                         <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
                         
