@@ -355,8 +355,8 @@
         history.forEach(item => {
             html += `
                 <div class="anime-card dynamic-border light-bg rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 light-border">
-                    <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block"
-                       onclick="console.log('Navigasi riwayat ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
+                    <a href="/episode/${item.episodeSlug}" class="block"
+                       onclick="console.log('Navigasi riwayat ke episode: ' + (this.href || window.location.origin + '/episode/' + item.episodeSlug))">
                         <div class="relative pb-[140%] overflow-hidden">
                             <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
                             
@@ -373,8 +373,8 @@
                             <h3 class="title text-sm font-semibold light-text mb-2 line-clamp-2 h-10">${item.episodeTitle}</h3>
                             <div class="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
                                 <span>${formatDate(item.watchedAt)}</span>
-                                <a href="/detail_anime/${item.slug}" class="text-primary hover:underline">
-                                    <i class="fas fa-info-circle mr-1"></i>Detail
+                                <a href="/anime/${item.slug}" class="text-primary hover:underline">
+                                    <i class="fas fa-info-circle mr-1"></i>Detail Anime
                                 </a>
                             </div>
                         </div>
@@ -483,18 +483,30 @@
                 links.forEach(link => {
                     console.log(`Link ${containerName}: ${link.href}`);
                     
-                    // Verifikasi bahwa link mengarah ke detail anime, bukan detail episode
-                    if (link.href.includes('/anime/')) {
-                        console.log(`✅ Link ${containerName} sudah benar mengarah ke detail anime`);
-                        
-                        // Periksa apakah ada double path di URL
-                        if (link.href.includes('/anime//anime/')) {
-                            console.error(`❌ Link ${containerName} memiliki double path (/anime//anime/)`);
+                    // Verifikasi link berdasarkan jenis container
+                    if (containerName === 'riwayat tontonan') {
+                        // Riwayat tontonan harus mengarah ke detail episode
+                        if (link.href.includes('/episode/')) {
+                            console.log(`✅ Link ${containerName} sudah benar mengarah ke detail episode`);
+                        } else if (link.href.includes('/anime/')) {
+                            console.error(`❌ Link ${containerName} mengarah ke detail anime, seharusnya ke detail episode`);
+                        } else if (link.href.includes('/detail_episode_video/')) {
+                            console.error(`❌ Link ${containerName} masih menggunakan format URL lama (/detail_episode_video/)`);
                         }
-                    } else if (link.href.includes('/episode/')) {
-                        console.error(`❌ Link ${containerName} masih mengarah ke detail episode`);
-                    } else if (link.href.includes('/detail_anime/')) {
-                        console.error(`❌ Link ${containerName} masih menggunakan format URL lama (/detail_anime/)`);
+                    } else {
+                        // Watchlist dan favorit harus mengarah ke detail anime
+                        if (link.href.includes('/anime/')) {
+                            console.log(`✅ Link ${containerName} sudah benar mengarah ke detail anime`);
+                            
+                            // Periksa apakah ada double path di URL
+                            if (link.href.includes('/anime//anime/')) {
+                                console.error(`❌ Link ${containerName} memiliki double path (/anime//anime/)`);
+                            }
+                        } else if (link.href.includes('/episode/')) {
+                            console.error(`❌ Link ${containerName} mengarah ke detail episode, seharusnya ke detail anime`);
+                        } else if (link.href.includes('/detail_anime/')) {
+                            console.error(`❌ Link ${containerName} masih menggunakan format URL lama (/detail_anime/)`);
+                        }
                     }
                     
                     // Tambahkan event listener untuk mencegah navigasi saat pengujian

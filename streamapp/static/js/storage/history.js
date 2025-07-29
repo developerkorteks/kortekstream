@@ -117,9 +117,13 @@ function getAnimeWatchHistory(animeSlug) {
  * Load watch history into container
  * @param {string} containerId - ID of container element
  */
-function loadWatchHistory(containerId = 'history-container') {
+/**
+ * Fungsi untuk menangani riwayat tontonan yang mengarahkan ke detail episode
+ * @param {string} containerId - ID container untuk menampilkan riwayat tontonan
+ */
+function loadWatchHistoryToEpisode(containerId = 'history-container') {
     // Log untuk verifikasi perubahan
-    console.log("Memuat riwayat tontonan dengan link ke detail anime");
+    console.log("Memuat riwayat tontonan dengan link ke detail episode");
     
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -131,14 +135,9 @@ function loadWatchHistory(containerId = 'history-container') {
         console.log("Contoh item riwayat pertama:", {
             title: history[0].title,
             slug: history[0].slug,
-            rawSlug: history[0].slug,
-            linkDetailAnime: `/anime/${history[0].slug}`
+            episodeSlug: history[0].episodeSlug,
+            linkDetailEpisode: `/episode/${history[0].episodeSlug}`
         });
-        
-        // Periksa apakah slug mengandung '/anime/'
-        if (history[0].slug.includes('/anime/')) {
-            console.error("⚠️ Slug mengandung '/anime/' di dalamnya, ini akan menyebabkan double path di URL");
-        }
     }
     
     if (history.length === 0) {
@@ -156,8 +155,8 @@ function loadWatchHistory(containerId = 'history-container') {
     history.forEach(item => {
         html += `
             <div class="anime-card dynamic-border bg-white dark:bg-darkSecondary rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 dark:border-gray-700">
-                <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block"
-                   onclick="console.log('Navigasi ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
+                <a href="/episode/${item.episodeSlug}" class="block"
+                   onclick="console.log('Navigasi riwayat ke episode: ' + (this.href || window.location.origin + '/episode/' + item.episodeSlug))">
                     <div class="relative pb-[140%] overflow-hidden">
                         <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
                         
@@ -174,8 +173,8 @@ function loadWatchHistory(containerId = 'history-container') {
                         <h3 class="title text-sm font-semibold text-gray-800 dark:text-white mb-2 line-clamp-2 h-10">${item.episodeTitle}</h3>
                         <div class="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
                             <span>${formatDate(item.watchedAt)}</span>
-                            <a href="/detail_anime/${item.slug}" class="text-primary dark:text-darkPrimary hover:underline">
-                                <i class="fas fa-info-circle mr-1"></i>Detail
+                            <a href="/anime/${item.slug}" class="text-primary dark:text-darkPrimary hover:underline">
+                                <i class="fas fa-info-circle mr-1"></i>Detail Anime
                             </a>
                         </div>
                     </div>
@@ -185,6 +184,12 @@ function loadWatchHistory(containerId = 'history-container') {
     });
     
     container.innerHTML = html;
+}
+
+// Fungsi asli untuk kompatibilitas
+function loadWatchHistory(containerId = 'history-container') {
+    // Gunakan fungsi baru untuk mengarahkan ke detail episode
+    return loadWatchHistoryToEpisode(containerId);
 }
 
 /**
@@ -239,7 +244,8 @@ function showNotification(message) {
  * Track episode clicks to add to watch history
  */
 function trackEpisodeClicks() {
-    const episodeLinks = document.querySelectorAll('a[href*="detail_episode_video"]');
+    // Perbarui selector untuk mencakup format URL baru
+    const episodeLinks = document.querySelectorAll('a[href*="detail_episode_video"], a[href*="episode/"]');
     
     episodeLinks.forEach(link => {
         link.addEventListener('click', function(e) {
@@ -253,12 +259,35 @@ function trackEpisodeClicks() {
                     const title = titleEl.textContent.trim();
                     const cover = coverEl.src;
                     const href = this.getAttribute('href');
-                    const episodeSlug = href.split('/').pop();
+                    
+                    // Ekstrak episodeSlug dari URL
+                    let episodeSlug;
+                    if (href.includes('detail_episode_video')) {
+                        // Format URL lama
+                        episodeSlug = href.split('/').pop();
+                    } else if (href.includes('episode/')) {
+                        // Format URL baru
+                        episodeSlug = href.replace(/^.*episode\//, '').replace(/\/$/, '');
+                    } else {
+                        episodeSlug = href.split('/').pop();
+                    }
+                    
                     const episodeTitle = this.textContent.trim();
                     
                     // Extract anime slug from the URL
-                    const animeSlug = card.querySelector('a[href*="detail_anime"]')?.href.split('/').pop() || '';
+                    const animeLink = card.querySelector('a[href*="anime"], a[href*="detail_anime"]');
+                    let animeSlug = '';
                     
+                    if (animeLink) {
+                        const animeHref = animeLink.href;
+                        if (animeHref.includes('anime/')) {
+                            animeSlug = animeHref.replace(/^.*anime\//, '').replace(/\/$/, '');
+                        } else if (animeHref.includes('detail_anime/')) {
+                            animeSlug = animeHref.replace(/^.*detail_anime\//, '').replace(/\/$/, '');
+                        }
+                    }
+                    
+                    console.log(`Menambahkan ke riwayat tontonan: ${episodeTitle} (${episodeSlug}), anime: ${animeSlug}`);
                     addToWatchHistory(null, title, animeSlug, episodeSlug, episodeTitle, cover);
                 }
             }

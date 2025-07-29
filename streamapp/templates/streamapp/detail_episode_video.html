@@ -249,7 +249,7 @@
         <!-- Anime Info -->
         {% if episode.anime_info %}
             <div class="light-bg backdrop-blur-md rounded-xl shadow-lg p-6 mb-8 light-border">
-                <h2 class="text-xl font-bold light-text mb-4 pb-2 border-b light-border">Informasi Anime</h2>
+                <h2 class="text-xl font-bold light-text mb-4 pb-2 border-b ">Informasi Anime</h2>
                 <h3 class="text-lg font-semibold light-text mb-2">{{ episode.anime_info.title }}</h3>
                 
                 <!-- Sinopsis dengan Show More/Less -->
@@ -423,8 +423,12 @@
         }
         
         // Dapatkan informasi episode dari URL jika tidak tersedia dari template
-        const episodeSlug = '{{ request.path|cut:"/detail_episode_video/" }}';
+        const episodeSlug = '{{ request.path|cut:"/episode/" }}';
         const episodeTitle = '{{ episode.title|escapejs }}' || 'Episode Tidak Diketahui';
+        
+        // Log untuk debugging
+        console.log("Path URL:", '{{ request.path }}');
+        console.log("Episode Slug:", episodeSlug);
         
         // Dapatkan informasi anime dan episode
         {% if episode.navigation.all_episodes_url %}
