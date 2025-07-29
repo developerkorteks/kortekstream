@@ -9,14 +9,26 @@
     <meta name="description" content="KortekStream adalah situs nonton anime subtitle Indonesia gratis dan mudah diakses. Update anime terbaru setiap hari.">
     <meta name="keywords" content="nonton anime, streaming anime, anime subtitle indonesia, anime gratis, kortekstream">
     <meta name="author" content="KortekStream">
-    <meta name="robots" content="index, follow">
-
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="mobile-web-app-capable" content="yes">
+    <!-- Preconnect untuk Domain Eksternal -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    
+    <!-- Preload untuk CSS dan Font Penting -->
+    <link rel="preload" href="{% static 'css/output.css' %}" as="style">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
+    
     <!-- Canonical URL untuk SEO -->
     <link rel="canonical" href="https://humanmade.my.id/">
 
     <!-- Favicon -->
     <link rel="icon" href="{% static 'img/kortekstream-logo.png' %}" type="image/png">
-
+    <link rel="apple-touch-icon" href="{% static 'img/kortekstream-logo.png' %}">
+    <meta name="google-site-verification" content="PDSiya5-uAGK4cS7oTcZrbFdejmVkFOBgvTx7RLAanE" />
     <!-- Open Graph / Facebook -->
     <meta property="og:title" content="KortekStream - Nonton Anime Subtitle Indonesia">
     <meta property="og:description" content="Situs nonton anime sub Indo gratis dan cepat. Tonton anime favoritmu sekarang di KortekStream!">
@@ -34,11 +46,46 @@
     <meta name="twitter:image" content="{% static 'img/kortekstream-logo.png' %}">
     <meta name="twitter:image:alt" content="KortekStream Logo">
 
-    <!-- Tailwind CSS -->
-    <link rel="stylesheet" href="{% static 'css/output.css' %}">
+    <!-- Critical CSS Inline -->
+    <style>
+        /* Critical CSS untuk rendering awal */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background: #ffffff;
+            color: #000000;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .dark body {
+            background: linear-gradient(to bottom right, #000000, #450a0a, #000000);
+            color: #ffffff;
+        }
+        .container {
+            width: 100%;
+            max-width: 1280px;
+            margin-left: auto;
+            margin-right: auto;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        .flex {
+            display: flex;
+        }
+        .items-center {
+            align-items: center;
+        }
+        .justify-between {
+            justify-content: space-between;
+        }
+    </style>
+    
+    <!-- Tailwind CSS dengan loading optimasi -->
+    <link rel="stylesheet" href="{% static 'css/output.css' %}" media="print" onload="this.media='all'; this.onload=null;">
+    <noscript><link rel="stylesheet" href="{% static 'css/output.css' %}"></noscript>
     
     <!-- Konfigurasi Tailwind untuk tema baru -->
-    <script>
+    <script defer type="text/javascript">
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -100,8 +147,9 @@
         }
     </script>
     
-    <!-- Font Awesome untuk ikon -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Font Awesome untuk ikon dengan optimasi loading -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'; this.onload=null;">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     
     <!-- Custom CSS -->
     <style>
@@ -294,6 +342,105 @@
     </style>
     
     {% block extra_css %}{% endblock %}
+    
+    <!-- Website Schema untuk SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "KortekStream",
+      "url": "https://humanmade.my.id/",
+      "description": "KortekStream adalah situs nonton anime subtitle Indonesia gratis dan mudah diakses. Update anime terbaru setiap hari dengan kualitas HD.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://humanmade.my.id/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    
+    <!-- Organization Schema untuk SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "KortekStream",
+      "url": "https://humanmade.my.id/",
+      "logo": "https://humanmade.my.id/static/img/kortekstream-logo.png",
+      "description": "Situs streaming anime subtitle Indonesia terlengkap dan terupdate. Nonton anime favoritmu dengan kualitas HD tanpa iklan yang mengganggu.",
+      "sameAs": [
+        "https://facebook.com/kortekstream",
+        "https://twitter.com/kortekstream",
+        "https://instagram.com/kortekstream"
+      ]
+    }
+    </script>
+    
+    <!-- Breadcrumb Structured Data -->
+    {% if request.path != '/' %}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Beranda",
+          "item": "https://humanmade.my.id/"
+        }{% if request.resolver_match.url_name == 'detail_anime' %},
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "{% if anime %}{{ anime.title }}{% else %}Detail Anime{% endif %}",
+          "item": "{{ request.build_absolute_uri }}"
+        }{% elif request.resolver_match.url_name == 'detail_episode_video' %},
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Anime",
+          "item": "{% if episode.navigation.all_episodes_url %}https://humanmade.my.id{% url 'streamapp:detail_anime' episode.navigation.all_episodes_url|cut:'https://samehadaku.now/anime/'|cut:'/' %}{% else %}https://humanmade.my.id/anime/{% endif %}"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "{% if episode.title %}{{ episode.title }}{% else %}Detail Episode{% endif %}",
+          "item": "{{ request.build_absolute_uri }}"
+        }{% elif request.resolver_match.url_name == 'search' %},
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Hasil Pencarian",
+          "item": "{{ request.build_absolute_uri }}"
+        }{% elif request.resolver_match.url_name == 'all_list_anime_terbaru' %},
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Anime Terbaru",
+          "item": "{{ request.build_absolute_uri }}"
+        }{% elif request.resolver_match.url_name == 'all_list_jadwal_rilis' %},
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Jadwal Rilis",
+          "item": "{{ request.build_absolute_uri }}"
+        }{% elif request.resolver_match.url_name == 'all_list_movie' %},
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Movie",
+          "item": "{{ request.build_absolute_uri }}"
+        }{% elif request.resolver_match.url_name == 'user_collection' %},
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Koleksi Pengguna",
+          "item": "{{ request.build_absolute_uri }}"
+        }{% endif %}
+      ]
+    }
+    </script>
+    {% endif %}
 </head>
 <body class="theme-transition min-h-screen flex flex-col dark:text-white text-black">
     <!-- Navbar -->
@@ -448,8 +595,8 @@
         </div>
     </footer>
     
-    <!-- JavaScript -->
-    <script>
+    <!-- JavaScript dengan atribut defer untuk meningkatkan performa -->
+    <script defer type="text/javascript">
         // Toggle mobile menu - Untuk ukuran layar di bawah large (lg)
         document.getElementById('mobile-menu-button').addEventListener('click', function() {
             const mobileMenu = document.getElementById('mobile-menu');

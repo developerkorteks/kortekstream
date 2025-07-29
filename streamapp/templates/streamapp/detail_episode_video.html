@@ -68,6 +68,27 @@
 </style>
 {% endblock %}
 
+{% block extra_head %}
+<!-- VideoObject Structured Data untuk SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "VideoObject",
+  "name": "{% if episode.title %}{{ episode.title }}{% else %}Episode Anime{% endif %}",
+  "description": "{% if episode.anime_info.synopsis %}{{ episode.anime_info.synopsis|truncatechars:150 }}{% else %}Nonton {{ episode.title }} subtitle Indonesia di KortekStream. Update episode terbaru dengan kualitas HD.{% endif %}",
+  "thumbnailUrl": "{% if episode.other_episodes.0.thumbnail_url %}{{ episode.other_episodes.0.thumbnail_url }}{% endif %}",
+  "uploadDate": "{% if episode.release_info %}{{ episode.release_info }}{% else %}{% now "Y-m-d" %}{% endif %}",
+  "duration": "PT24M",
+  "contentUrl": "{{ request.build_absolute_uri }}",
+  "embedUrl": "{{ request.build_absolute_uri }}",
+  "potentialAction": {
+    "@type": "WatchAction",
+    "target": "{{ request.build_absolute_uri }}"
+  }
+}
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Breadcrumb -->
@@ -299,7 +320,7 @@
                                     <div class="relative pb-[56.25%] overflow-hidden z-10">
                                         <!-- Image with Gradient Overlay -->
                                         <div class="absolute inset-0 w-full h-full">
-                                            <img src="{{ ep.thumbnail_url }}" alt="{{ ep.title }}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                            <img src="{{ ep.thumbnail_url }}" alt="{{ ep.title }}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" width="240" height="135" decoding="async">
                                             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                                         </div>
                                         

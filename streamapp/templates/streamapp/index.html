@@ -1,7 +1,31 @@
 
 {% extends 'streamapp/base.html' %}
 {% load static %}
-{% block title %}KortekStream - Nonton Anime Subtitle Indonesia{% endblock %}
+{% block title %}KortekStream - Nonton Anime Subtitle Indonesia Gratis & Terlengkap{% endblock %}
+
+{% block extra_head %}
+<!-- Meta Tags Tambahan untuk SEO -->
+<meta name="description" content="KortekStream adalah situs nonton anime subtitle Indonesia gratis dan terlengkap. Update anime terbaru setiap hari dengan kualitas HD tanpa iklan yang mengganggu. Streaming anime favoritmu sekarang!">
+<meta name="keywords" content="nonton anime, streaming anime, anime subtitle indonesia, anime gratis, anime terbaru, anime ongoing, anime movie, kortekstream, anime sub indo">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:title" content="KortekStream - Nonton Anime Subtitle Indonesia Gratis & Terlengkap">
+<meta property="og:description" content="Situs nonton anime sub Indo gratis dan terlengkap. Tonton anime favoritmu sekarang di KortekStream dengan kualitas HD!">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://humanmade.my.id/">
+<meta property="og:image" content="{% static 'img/kortekstream-logo.png' %}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:site_name" content="KortekStream">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="KortekStream - Nonton Anime Subtitle Indonesia Gratis & Terlengkap">
+<meta name="twitter:description" content="Streaming anime sub Indo gratis dan update cepat. Temukan anime favoritmu di KortekStream dengan kualitas HD!">
+<meta name="twitter:image" content="{% static 'img/kortekstream-logo.png' %}">
+<meta name="twitter:image:alt" content="KortekStream Logo">
+{% endblock %}
 
 {% block content %}
 <!-- Hero Section with Top Anime Banner -->
@@ -13,7 +37,7 @@
                 <div class="hero-slide absolute inset-0 transition-all duration-1000 {% if forloop.first %}opacity-100{% else %}opacity-0{% endif %}" data-index="{{ forloop.counter0 }}">
                     <!-- Background Image with Blur -->
                     <div class="absolute inset-0">
-                        <img src="{{ anime.cover }}" alt="{{ anime.judul }}" class="w-full h-full object-cover blur-sm scale-110">
+                        <img src="{{ anime.cover }}" alt="{{ anime.judul }}" class="w-full h-full object-cover blur-sm scale-110" loading="lazy" width="1200" height="675" fetchpriority="high" decoding="async">
                     </div>
                     
                     <!-- Overlay Layers -->
@@ -103,7 +127,7 @@
                         <div class="group anime-card flex-shrink-0 w-[130px] sm:w-[150px] md:w-[180px] light-bg backdrop-blur-md rounded-lg overflow-hidden light-border hover:bg-primary/10 dark:hover:bg-black/60 transition-all duration-300">
                             <a href="{% if anime.anime_slug %}{% url 'streamapp:detail_anime' anime.anime_slug %}{% else %}{% url 'streamapp:detail_anime' anime.url|cut:'https://samehadaku.now/anime/'|cut:'/' %}{% endif %}" class="block">
                                 <div class="relative">
-                                    <img src="{{ anime.cover }}" alt="{{ anime.judul }}" class="w-full h-28 sm:h-32 md:h-40 object-cover group-hover:scale-105 transition-transform duration-300">
+                                    <img src="{{ anime.cover }}" alt="{{ anime.judul }}" class="w-full h-28 sm:h-32 md:h-40 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="180" height="240">
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
                                     
                                     <!-- Rating Badge -->
@@ -182,7 +206,7 @@
                 <div class="group anime-card light-bg backdrop-blur-md rounded-lg overflow-hidden light-border hover:bg-primary/10 dark:hover:bg-white/20 transition-all duration-300">
                     <a href="{% url 'streamapp:detail_anime' anime.url|cut:'https://samehadaku.now/anime/'|cut:'/' %}" class="block">
                         <div class="relative">
-                            <img src="{{ anime.cover }}" alt="{{ anime.judul }}" class="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300">
+                            <img src="{{ anime.cover }}" alt="{{ anime.judul }}" class="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="160" height="128">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
                             
                             <!-- Episode Badge -->
@@ -231,7 +255,7 @@
                 <div class="group anime-card light-bg backdrop-blur-md rounded-lg overflow-hidden light-border hover:bg-primary/10 dark:hover:bg-white/20 transition-all duration-300">
                     <a href="{% url 'streamapp:detail_anime' item.url|cut:'https://samehadaku.now/anime/'|cut:'/' %}" class="block">
                         <div class="relative">
-                            <img src="{{ item.cover }}" alt="{{ item.judul }}" class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300">
+                            <img src="{{ item.cover }}" alt="{{ item.judul }}" class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="160" height="192">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
                             
                             <!-- Movie Badge -->
@@ -309,7 +333,7 @@
                                         <div class="block">
                                     {% endif %}
                                         <div class="relative">
-                                            <img src="{{ anime.cover_url }}" alt="{{ anime.title }}" class="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300">
+                                            <img src="{{ anime.cover_url }}" alt="{{ anime.title }}" class="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="120" height="160">
                                             
                                             <!-- Ranking Badge -->
                                             {% if forloop.counter <= 3 %}
