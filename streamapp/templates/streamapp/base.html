@@ -4,22 +4,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}KortekStream{% endblock %}</title>
     
+    <title>{% block title %}KortekStream - Nonton Anime Subtitle Indonesia{% endblock %}</title>
+    <meta name="description" content="KortekStream adalah situs nonton anime subtitle Indonesia gratis dan mudah diakses. Update anime terbaru setiap hari.">
+    <meta name="keywords" content="nonton anime, streaming anime, anime subtitle indonesia, anime gratis, kortekstream">
+    <meta name="author" content="KortekStream">
+    <meta name="robots" content="index, follow">
+
+    <!-- Canonical URL untuk SEO -->
+    <link rel="canonical" href="https://humanmade.my.id/">
+
+    <!-- Favicon -->
+    <link rel="icon" href="{% static 'img/kortekstream-logo.png' %}" type="image/png">
+
     <!-- Open Graph / Facebook -->
-    <meta property="og:image" content="https://cdn.builder.io/api/v1/image/assets%2Fc5b47d20f6a943e485717e5895739988%2F56c6badd41c34fbbadac34159211505e">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
+    <meta property="og:title" content="KortekStream - Nonton Anime Subtitle Indonesia">
+    <meta property="og:description" content="Situs nonton anime sub Indo gratis dan cepat. Tonton anime favoritmu sekarang di KortekStream!">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://humanmade.my.id/">
+    <meta property="og:image" content="{% static 'img/kortekstream-logo.png' %}">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
     <meta property="og:image:alt" content="KortekStream - Nonton Anime Subtitle Indonesia">
-    
+
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://cdn.builder.io/api/v1/image/assets%2Fc5b47d20f6a943e485717e5895739988%2F56c6badd41c34fbbadac34159211505e">
-    <meta name="twitter:image:alt" content="KortekStream - Nonton Anime Subtitle Indonesia">
-    
+    <meta name="twitter:title" content="KortekStream - Nonton Anime Subtitle Indonesia">
+    <meta name="twitter:description" content="Streaming anime sub Indo gratis dan update cepat. Temukan anime favoritmu di KortekStream.">
+    <meta name="twitter:image" content="{% static 'img/kortekstream-logo.png' %}">
+    <meta name="twitter:image:alt" content="KortekStream Logo">
+
     <!-- Tailwind CSS -->
-    <!-- Gunakan CDN untuk development, uncomment output.css untuk production dengan Tailwind CLI -->
-    {% comment %} <script src="https://cdn.tailwindcss.com"></script> {% endcomment %}
     <link rel="stylesheet" href="{% static 'css/output.css' %}">
     
     <!-- Konfigurasi Tailwind untuk tema baru -->
