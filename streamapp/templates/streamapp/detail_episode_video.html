@@ -101,7 +101,7 @@
                 </a>
             </li>
             {% if episode.navigation.all_episodes_url %}
-                {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://samehadaku.now/anime/"|cut:"/" %}
+                {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
                     <li>
                         <div class="flex items-center">
                             <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
@@ -137,7 +137,7 @@
                 <!-- User Action Buttons -->
                 <div class="flex space-x-2 mb-4 md:mb-0">
                     {% if episode.navigation.all_episodes_url %}
-                        {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://samehadaku.now/anime/"|cut:"/" %}
+                        {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
                             <button id="favorite-btn" onclick="toggleFavorite('{{ episode.title|escapejs }}', '{{ anime_slug|escapejs }}', '{{ episode.other_episodes.0.thumbnail_url|default:''|escapejs }}')" class="flex items-center px-4 py-2 light-bg backdrop-blur-sm light-text rounded-lg hover:bg-black/70 transition-colors">
                                 <i id="favorite-icon" class="far fa-heart mr-2"></i>
                                 <span id="favorite-text">Favorit</span>
@@ -155,7 +155,7 @@
             <!-- Navigation Buttons -->
             <div class="flex flex-wrap gap-3 mb-4">
                 {% if episode.navigation.previous_episode_url %}
-                    {% with prev_slug=episode.navigation.previous_episode_url|cut:"https://samehadaku.now/"|cut:"/" %}
+                    {% with prev_slug=episode.navigation.previous_episode_url|cut:"https://v1.samehadaku.how/"|cut:"/" %}
                         <a href="{% url 'streamapp:detail_episode_video' prev_slug %}" class="px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
                             <i class="fas fa-chevron-left mr-1"></i> Episode Sebelumnya
                         </a>
@@ -167,7 +167,7 @@
                 {% endif %}
                 
                 {% if episode.navigation.all_episodes_url %}
-                    {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://samehadaku.now/anime/"|cut:"/" %}
+                    {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
                         <a href="{% url 'streamapp:detail_anime' anime_slug %}" class="px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
                             <i class="fas fa-list mr-1"></i> Semua Episode
                         </a>
@@ -175,7 +175,7 @@
                 {% endif %}
                 
                 {% if episode.navigation.next_episode_url %}
-                    {% with next_slug=episode.navigation.next_episode_url|cut:"https://samehadaku.now/"|cut:"/" %}
+                    {% with next_slug=episode.navigation.next_episode_url|cut:"https://v1.samehadaku.how/"|cut:"/" %}
                         <a href="{% url 'streamapp:detail_episode_video' next_slug %}" class="px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
                             Episode Selanjutnya <i class="fas fa-chevron-right ml-1"></i>
                         </a>
@@ -311,7 +311,7 @@
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {% for ep in episode.other_episodes %}
                         <div class="anime-card dynamic-border group relative rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
-                            {% with ep_slug=ep.url|cut:"https://samehadaku.now/"|cut:"/" %}
+                            {% with ep_slug=ep.url|cut:"https://v1.samehadaku.how/"|cut:"/" %}
                                 <a href="{% url 'streamapp:detail_episode_video' ep_slug %}" class="block">
                                     <!-- Card Background with Blur Effect -->
                                     <div class="absolute inset-0 bg-black/20 backdrop-blur-md rounded-xl z-0"></div>
@@ -432,9 +432,12 @@
 
 {% block extra_js %}
 <script>
-    // Tambahkan episode ke watch history saat halaman dimuat
+    // Inisialisasi variabel untuk melacak apakah anime sudah ditambahkan ke riwayat tontonan
+    let animeAddedToHistory = false;
+    
+    // Persiapkan data untuk riwayat tontonan saat halaman dimuat
     document.addEventListener('DOMContentLoaded', function() {
-        console.log("DOM Content Loaded - Memulai proses penambahan riwayat tontonan");
+        console.log("DOM Content Loaded - Mempersiapkan data untuk riwayat tontonan");
         
         // Periksa apakah localStorage tersedia
         if (!isLocalStorageAvailable()) {
@@ -444,76 +447,20 @@
         }
         
         // Dapatkan informasi episode dari URL jika tidak tersedia dari template
-        const episodeSlug = '{{ request.path|cut:"/episode/" }}';
+        const episodeSlug = '{{ request.path }}';
         const episodeTitle = '{{ episode.title|escapejs }}' || 'Episode Tidak Diketahui';
         
         // Log untuk debugging
         console.log("Path URL:", '{{ request.path }}');
         console.log("Episode Slug:", episodeSlug);
         
-        // Dapatkan informasi anime dan episode
+        // Periksa status watchlist dan favorite
         {% if episode.navigation.all_episodes_url %}
-            console.log("episode.navigation.all_episodes_url tersedia");
-            {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://samehadaku.now/anime/"|cut:"/" %}
-                const animeSlug = '{{ anime_slug }}';
-                const animeTitle = '{{ episode.title|escapejs }}'.split(' Episode')[0];
-                const animeCover = '{{ episode.other_episodes.0.thumbnail_url|default:""|escapejs }}';
-                
-                console.log("Data untuk history:", {
-                    animeSlug, animeTitle, episodeSlug, episodeTitle, animeCover
-                });
-                
-                console.log("localStorage tersedia, menambahkan ke riwayat tontonan");
-                
-                // Tambahkan ke watch history
-                addToWatchHistory(null, animeTitle, animeSlug, episodeSlug, episodeTitle, animeCover);
-                
+            {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
                 // Periksa status watchlist dan favorite
-                updateWatchlistButton(animeSlug);
-                updateFavoriteButton(animeSlug);
-                
-                // Tampilkan notifikasi
-                showNotification('Ditambahkan ke riwayat tontonan');
+                updateWatchlistButton('{{ anime_slug }}');
+                updateFavoriteButton('{{ anime_slug }}');
             {% endwith %}
-        {% else %}
-            console.log("episode.navigation.all_episodes_url TIDAK tersedia, mencoba alternatif");
-            
-            // Alternatif jika all_episodes_url tidak tersedia
-            // Ekstrak informasi dari judul episode atau URL
-            let animeTitle = '';
-            let animeSlug = '';
-            let animeCover = '';
-            
-            // Coba ekstrak judul anime dari judul episode
-            if (episodeTitle && episodeTitle.includes('Episode')) {
-                animeTitle = episodeTitle.split('Episode')[0].trim();
-            } else {
-                animeTitle = 'Anime Tidak Diketahui';
-            }
-            
-            // Coba dapatkan slug dari URL jika memungkinkan
-            if (episodeSlug.includes('/')) {
-                animeSlug = episodeSlug.split('/')[0];
-            } else {
-                animeSlug = episodeSlug;
-            }
-            
-            // Coba dapatkan cover dari thumbnail episode jika ada
-            {% if episode.other_episodes.0.thumbnail_url %}
-                animeCover = '{{ episode.other_episodes.0.thumbnail_url|escapejs }}';
-            {% else %}
-                animeCover = '';
-            {% endif %}
-            
-            console.log("Data alternatif untuk history:", {
-                animeSlug, animeTitle, episodeSlug, episodeTitle, animeCover
-            });
-            
-            // Tambahkan ke watch history dengan data alternatif
-            addToWatchHistory(null, animeTitle, animeSlug, episodeSlug, episodeTitle, animeCover);
-            
-            // Tampilkan notifikasi
-            showNotification('Ditambahkan ke riwayat tontonan');
         {% endif %}
         
         // Tambahkan event listener untuk video player
@@ -527,11 +474,12 @@
                     video.addEventListener('play', function() {
                         console.log("Video mulai diputar, memastikan riwayat tontonan ditambahkan");
                         // Tambahkan ke riwayat tontonan lagi untuk memastikan
-                        const currentEpisodeSlug = '{{ request.path|cut:"/detail_episode_video/" }}';
+                        // Perbaiki format URL dengan menambahkan protokol yang benar
+                        const currentEpisodeSlug = '{{ request.path }}';
                         const currentEpisodeTitle = '{{ episode.title|escapejs }}' || 'Episode Tidak Diketahui';
                         
                         {% if episode.navigation.all_episodes_url %}
-                            {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://samehadaku.now/anime/"|cut:"/" %}
+                            {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
                                 const currentAnimeSlug = '{{ anime_slug }}';
                                 const currentAnimeTitle = '{{ episode.title|escapejs }}'.split(' Episode')[0];
                                 const currentAnimeCover = '{{ episode.other_episodes.0.thumbnail_url|default:""|escapejs }}';
@@ -551,11 +499,11 @@
                             lastUpdateTime = currentTime;
                             
                             // Tambahkan ke riwayat tontonan lagi untuk memastikan
-                            const currentEpisodeSlug = '{{ request.path|cut:"/detail_episode_video/" }}';
+                            const currentEpisodeSlug = '{{ request.path }}';
                             const currentEpisodeTitle = '{{ episode.title|escapejs }}' || 'Episode Tidak Diketahui';
                             
                             {% if episode.navigation.all_episodes_url %}
-                                {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://samehadaku.now/anime/"|cut:"/" %}
+                                {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
                                     const currentAnimeSlug = '{{ anime_slug }}';
                                     const currentAnimeTitle = '{{ episode.title|escapejs }}'.split(' Episode')[0];
                                     const currentAnimeCover = '{{ episode.other_episodes.0.thumbnail_url|default:""|escapejs }}';
@@ -579,16 +527,54 @@
                         iframe.addEventListener('load', function() {
                             console.log("Iframe dimuat, memastikan riwayat tontonan ditambahkan");
                             // Tambahkan ke riwayat tontonan lagi untuk memastikan
-                            const currentEpisodeSlug = '{{ request.path|cut:"/detail_episode_video/" }}';
+                            // Perbaiki format URL dengan menggunakan path lengkap
+                            const currentEpisodeSlug = '{{ request.path }}';
                             const currentEpisodeTitle = '{{ episode.title|escapejs }}' || 'Episode Tidak Diketahui';
                             
+                            console.log(`Video telah diputar selama 30 detik, menambahkan ke riwayat: ${currentEpisodeTitle}`);
+                            
                             {% if episode.navigation.all_episodes_url %}
-                                {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://samehadaku.now/anime/"|cut:"/" %}
+                                {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
                                     const currentAnimeSlug = '{{ anime_slug }}';
                                     const currentAnimeTitle = '{{ episode.title|escapejs }}'.split(' Episode')[0];
                                     const currentAnimeCover = '{{ episode.other_episodes.0.thumbnail_url|default:""|escapejs }}';
                                     
-                                    addToWatchHistory(null, currentAnimeTitle, currentAnimeSlug, currentEpisodeSlug, currentEpisodeTitle, currentAnimeCover);
+                                    console.log(`Data anime untuk riwayat: ${currentAnimeTitle}, slug: ${currentAnimeSlug}, cover: ${currentAnimeCover}`);
+                                    
+                                    // Tambahkan ke riwayat tontonan dengan flag watched=true untuk menandai sudah ditonton
+                                    // Hanya tambahkan ke riwayat tontonan jika belum ditambahkan
+                                    if (!animeAddedToHistory) {
+                                        // Hanya tambahkan ke riwayat tontonan jika belum ditambahkan atau jika sudah 30 detik
+                                        if (!animeAddedToHistory) {
+                                            console.log("Menambahkan anime ke riwayat tontonan setelah 30 detik menonton");
+                                            // Hanya tambahkan ke riwayat tontonan jika belum ditambahkan
+                                            if (!animeAddedToHistory) {
+                                                console.log("Video mulai diputar, menambahkan ke riwayat tontonan");
+                                                // Hanya tambahkan ke riwayat tontonan jika belum ditambahkan atau jika sudah 30 detik
+                                                if (!animeAddedToHistory) {
+                                                    console.log("Video telah diputar selama 30 detik, menambahkan ke riwayat tontonan");
+                                                    // Hanya tambahkan ke riwayat tontonan jika belum ditambahkan
+                                                    if (!animeAddedToHistory) {
+                                                        console.log("Video mulai diputar, menambahkan ke riwayat tontonan");
+                                                        addToWatchHistory(null, currentAnimeTitle, currentAnimeSlug, currentEpisodeSlug, currentEpisodeTitle, currentAnimeCover);
+                                                        animeAddedToHistory = true;
+                                                        showNotification('Ditambahkan ke riwayat tontonan');
+                                                    }
+                                                    animeAddedToHistory = true;
+                                                    showNotification('Ditambahkan ke riwayat tontonan setelah 30 detik menonton');
+                                                }
+                                                animeAddedToHistory = true;
+                                                showNotification('Ditambahkan ke riwayat tontonan');
+                                            }
+                                            animeAddedToHistory = true;
+                                            showNotification('Ditambahkan ke riwayat tontonan setelah 30 detik menonton');
+                                        }
+                                        animeAddedToHistory = true;
+                                        showNotification('Ditambahkan ke riwayat tontonan');
+                                    }
+                                    
+                                    // Tampilkan notifikasi
+                                    showNotification('Ditambahkan ke riwayat tontonan');
                                 {% endwith %}
                             {% endif %}
                         });
@@ -804,6 +790,23 @@
         });
         
         try {
+            // Perbaiki format URL jika perlu
+            if (slug && slug.startsWith('https:') && !slug.startsWith('https://')) {
+                slug = slug.replace('https:', 'https://');
+                console.log("Format slug diperbaiki:", slug);
+            }
+            
+            if (episodeSlug && episodeSlug.startsWith('https:') && !episodeSlug.startsWith('https://')) {
+                episodeSlug = episodeSlug.replace('https:', 'https://');
+                console.log("Format episodeSlug diperbaiki:", episodeSlug);
+            }
+            
+            // Pastikan episodeSlug tidak mengandung duplikasi path
+            if (episodeSlug && episodeSlug.includes('/episode/') && episodeSlug.startsWith('/episode/')) {
+                episodeSlug = episodeSlug.replace('/episode/', '');
+                console.log("Duplikasi path dihapus dari episodeSlug:", episodeSlug);
+            }
+            
             let history = getWatchHistory();
             console.log("Jumlah riwayat tontonan sebelum ditambahkan:", history.length);
             
@@ -813,12 +816,27 @@
                 history = history.slice(0, 99);
             }
             
-            // Check if this episode is already in history
-            const existingIndex = history.findIndex(item => item.episodeSlug === episodeSlug);
+            // Check if this episode is already in history (dengan pengecekan yang lebih baik)
+            const existingIndex = history.findIndex(item => {
+                // Normalisasi URL untuk perbandingan
+                const normalizedItemSlug = item.episodeSlug.replace(/^\/episode\//, '').replace(/^https:/, 'https://');
+                const normalizedNewSlug = episodeSlug.replace(/^\/episode\//, '').replace(/^https:/, 'https://');
+                
+                return normalizedItemSlug === normalizedNewSlug ||
+                       normalizedItemSlug.includes(normalizedNewSlug) ||
+                       normalizedNewSlug.includes(normalizedItemSlug);
+            });
+            
             if (existingIndex !== -1) {
                 console.log("Episode sudah ada di riwayat tontonan, menghapus entry lama");
                 // Remove the existing entry
                 history.splice(existingIndex, 1);
+            }
+            
+            // Pastikan cover tidak kosong
+            if (!cover || cover === 'undefined' || cover === '') {
+                console.log("Cover kosong, menggunakan logo default");
+                cover = '/static/img/logo.png'; // Gunakan logo default
             }
             
             // Add to beginning of array (most recent first)
@@ -845,6 +863,9 @@
                 const parsedHistory = JSON.parse(savedHistory);
                 console.log("Verifikasi: Jumlah riwayat tontonan setelah disimpan:", parsedHistory.length);
                 console.log("Verifikasi: Item pertama di riwayat tontonan:", parsedHistory[0]);
+                
+                // Update tampilan riwayat tontonan jika ada
+                updateWatchHistoryDisplay();
             } else {
                 console.error("Verifikasi gagal: Riwayat tontonan tidak ditemukan di localStorage setelah disimpan");
             }
@@ -861,6 +882,58 @@
         } catch (error) {
             console.error('Error clearing watch history:', error);
             return false;
+        }
+    }
+    
+    // Fungsi untuk memperbarui tampilan riwayat tontonan
+    function updateWatchHistoryDisplay() {
+        // Cek apakah ada elemen riwayat tontonan di halaman
+        const watchHistoryContainer = document.getElementById('watch-history-container');
+        if (watchHistoryContainer) {
+            // Dapatkan riwayat tontonan
+            const history = getWatchHistory();
+            
+            // Perbarui tampilan
+            if (history.length > 0) {
+                let historyHTML = '';
+                
+                // Batasi hanya 10 item terbaru
+                const recentHistory = history.slice(0, 10);
+                
+                recentHistory.forEach(item => {
+                    // Pastikan cover valid
+                    const coverSrc = item.cover && item.cover !== 'undefined' && item.cover !== ''
+                        ? item.cover
+                        : '/static/img/logo.png';
+                    
+                    historyHTML += `
+                        <div class="anime-card dynamic-border group relative rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
+                            <a href="/episode/${item.episodeSlug}" class="block">
+                                <div class="absolute inset-0 bg-black/20 backdrop-blur-md rounded-xl z-0"></div>
+                                <div class="relative pb-[56.25%] overflow-hidden z-10">
+                                    <div class="absolute inset-0 w-full h-full">
+                                        <img src="${coverSrc}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" width="240" height="135" decoding="async" onerror="this.src='/static/img/logo.png'">
+                                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                                    </div>
+                                    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                                        <div class="w-12 h-12 rounded-full bg-primary/80 flex items-center justify-center">
+                                            <i class="fas fa-play text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div class="absolute bottom-0 left-0 right-0 p-3 z-20">
+                                        <h3 class="title text-sm font-semibold text-white mb-1 line-clamp-2">${item.episodeTitle}</h3>
+                                        <div class="text-xs text-gray-300">${new Date(item.watchedAt).toLocaleDateString()}</div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    `;
+                });
+                
+                watchHistoryContainer.innerHTML = historyHTML;
+            } else {
+                watchHistoryContainer.innerHTML = '<p class="text-center light-text py-4">Belum ada riwayat tontonan</p>';
+            }
         }
     }
     

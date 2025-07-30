@@ -112,8 +112,11 @@ async def get_anime_detail(anime_slug):
     
     # Jika tidak ada di cache, ambil data baru
     # Bangun URL lengkap di dalam fungsi (tidak terlihat oleh pengguna)
-    base_url = "https://samehadaku.now/anime/"
+    # Gunakan URL yang sama dengan yang digunakan di file scraping
+    base_url = "https://v1.samehadaku.how/anime/"
     url = f"{base_url}{anime_slug}/"
+    
+    print(f"DEBUG - Mengambil detail anime dari URL: {url}")
     
     # Ambil HTML dari URL
     html_content = await asyncio.to_thread(get_html_content, url)
@@ -125,6 +128,11 @@ async def get_anime_detail(anime_slug):
         html_content,
         anime_slug
     )
+    
+    if result:
+        print(f"DEBUG - Berhasil mendapatkan data anime: {anime_slug}")
+    else:
+        print(f"DEBUG - Gagal mendapatkan data anime: {anime_slug}")
     
     # Simpan hasil ke cache
     await cache.aset(cache_key, result, 60*60*24)  # Cache selama 24 jam
@@ -145,7 +153,7 @@ async def index(request):
         return render(request, 'streamapp/index.html', context=cached_data)
     
     # Ambil HTML dari URL hanya sekali
-    url = "https://samehadaku.now/"
+    url = "https://v1.samehadaku.how/"
     html_content = await asyncio.to_thread(get_html_content, url)
     
     # Jalankan semua fungsi scraping secara asinkron dan paralel
@@ -189,7 +197,29 @@ async def detail_anime(request, anime_slug=None):
     if not anime_slug:
         return render(request, 'streamapp/detail_anime.html', {})
     
+    # Tambahkan logging untuk debug
+    print(f"DEBUG - anime_slug yang diterima: {anime_slug}")
+    
     try:
+        # Periksa apakah anime_slug berisi URL yang tidak valid
+        if ':' in anime_slug:
+            # Jika anime_slug berisi karakter ':' (seperti https:v1.samehadaku.how...)
+            # Ini menandakan URL yang tidak valid, coba perbaiki
+            print(f"DEBUG - Mendeteksi URL tidak valid dengan ':': {anime_slug}")
+            
+            # Coba ekstrak bagian yang valid
+            if 'v1.samehadaku.how' in anime_slug:
+                # Jika berisi domain v1.samehadaku.how, ekstrak slug anime yang sebenarnya
+                parts = anime_slug.split('how')
+                if len(parts) > 1:
+                    # Ambil bagian terakhir dari URL (slug anime)
+                    anime_slug = parts[1].strip('/').split('/')[-1]
+                    print(f"DEBUG - Slug anime diperbaiki menjadi: {anime_slug}")
+            else:
+                # Jika format tidak dikenali, coba ekstrak bagian terakhir
+                anime_slug = anime_slug.split('/')[-1]
+                print(f"DEBUG - Slug anime dibersihkan menjadi: {anime_slug}")
+        
         # Dapatkan detail anime dengan caching
         anime_data = await get_anime_detail(anime_slug)
         
@@ -515,14 +545,14 @@ async def detail_episode_video(request, episode_slug=None):
                 print(f"DEBUG - URL diperbaiki menjadi: {episode_url}")
             else:
                 # Jika format tidak dikenali, gunakan base_url default
-                base_url = "https://samehadaku.now/"
+                base_url = "https://v1.samehadaku.how/"
                 # Hapus bagian yang mungkin berisi protokol tidak valid
                 clean_slug = episode_slug.split(':')[-1]
                 episode_url = f"{base_url}{clean_slug}/"
                 print(f"DEBUG - URL dibersihkan menjadi: {episode_url}")
         else:
             # Jika episode_slug adalah slug biasa, gunakan base_url
-            base_url = "https://samehadaku.now/"
+            base_url = "https://v1.samehadaku.how/"
             episode_url = f"{base_url}{episode_slug}/"
             print(f"DEBUG - URL dibangun dengan base_url: {episode_url}")
         

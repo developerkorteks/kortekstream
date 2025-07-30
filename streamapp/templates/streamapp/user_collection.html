@@ -351,14 +351,35 @@
             return;
         }
         
-        let html = '';
+        // Hapus duplikasi berdasarkan episodeSlug
+        const uniqueHistory = [];
+        const episodeSlugs = new Set();
+        
         history.forEach(item => {
+            if (!episodeSlugs.has(item.episodeSlug)) {
+                episodeSlugs.add(item.episodeSlug);
+                uniqueHistory.push(item);
+            }
+        });
+        
+        console.log(`Riwayat asli: ${history.length} item, setelah deduplikasi: ${uniqueHistory.length} item`);
+        
+        // Simpan kembali history yang sudah dideduplikasi
+        localStorage.setItem('kortekstream_history', JSON.stringify(uniqueHistory));
+        
+        let html = '';
+        uniqueHistory.forEach(item => {
+            // Periksa apakah cover valid
+            const coverUrl = item.cover && item.cover !== "N/A" && item.cover !== "-"
+                ? item.cover
+                : "{% static 'img/kortekstream-logo.png' %}"; // Gunakan logo default jika cover tidak valid
+            
             html += `
                 <div class="anime-card dynamic-border light-bg rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 light-border">
                     <a href="/episode/${item.episodeSlug}" class="block"
                        onclick="console.log('Navigasi riwayat ke episode: ' + (this.href || window.location.origin + '/episode/' + item.episodeSlug))">
                         <div class="relative pb-[140%] overflow-hidden">
-                            <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+                            <img src="${coverUrl}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='{% static 'img/kortekstream-logo.png' %}'">
                             
                             <div class="absolute top-2 right-2 bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded-md">
                                 <i class="fas fa-play mr-1"></i> Ditonton

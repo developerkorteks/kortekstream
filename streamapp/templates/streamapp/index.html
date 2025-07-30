@@ -125,7 +125,7 @@
                 <div id="top-anime-carousel" class="flex overflow-x-auto pb-4 space-x-3 sm:space-x-4 scrollbar-hide scroll-smooth">
                     {% for anime in anime_mingguan %}
                         <div class="group anime-card flex-shrink-0 w-[130px] sm:w-[150px] md:w-[180px] light-bg backdrop-blur-md rounded-lg overflow-hidden light-border hover:bg-primary/10 dark:hover:bg-black/60 transition-all duration-300">
-                            <a href="{% if anime.anime_slug %}{% url 'streamapp:detail_anime' anime.anime_slug %}{% else %}{% url 'streamapp:detail_anime' anime.url|cut:'https://samehadaku.now/anime/'|cut:'/' %}{% endif %}" class="block">
+                            <a href="{% if anime.anime_slug %}{% url 'streamapp:detail_anime' anime.anime_slug %}{% else %}{% url 'streamapp:detail_anime' anime.url|cut:'https://v1.samehadaku.how/anime/'|cut:'/' %}{% endif %}" class="block">
                                 <div class="relative">
                                     <img src="{{ anime.cover }}" alt="{{ anime.judul }}" class="w-full h-28 sm:h-32 md:h-40 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="180" height="240">
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -204,7 +204,7 @@
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
             {% for anime in anime_terbaru %}
                 <div class="group anime-card light-bg backdrop-blur-md rounded-lg overflow-hidden light-border hover:bg-primary/10 dark:hover:bg-white/20 transition-all duration-300">
-                    <a href="{% url 'streamapp:detail_anime' anime.url|cut:'https://samehadaku.now/anime/'|cut:'/' %}" class="block">
+                    <a href="{% url 'streamapp:detail_anime' anime.url|cut:'https://v1.samehadaku.how/anime/'|cut:'/' %}" class="block">
                         <div class="relative">
                             <img src="{{ anime.cover }}" alt="{{ anime.judul }}" class="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="160" height="128">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -253,7 +253,7 @@
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
             {% for item in movie %}
                 <div class="group anime-card light-bg backdrop-blur-md rounded-lg overflow-hidden light-border hover:bg-primary/10 dark:hover:bg-white/20 transition-all duration-300">
-                    <a href="{% url 'streamapp:detail_anime' item.url|cut:'https://samehadaku.now/anime/'|cut:'/' %}" class="block">
+                    <a href="{% url 'streamapp:detail_anime' item.url|cut:'https://v1.samehadaku.how/anime/'|cut:'/' %}" class="block">
                         <div class="relative">
                             <img src="{{ item.cover }}" alt="{{ item.judul }}" class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="160" height="192">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -630,15 +630,51 @@
     
     function addToWatchHistory(animeId, title, slug, episodeSlug, episodeTitle, cover) {
         try {
+            console.log("addToWatchHistory dipanggil dengan:", {
+                animeId, title, slug, episodeSlug, episodeTitle, cover
+            });
+            
             let history = getWatchHistory();
+            console.log("Jumlah riwayat tontonan sebelum ditambahkan:", history.length);
+            
+            // Cek apakah episode sudah ada di history untuk mencegah duplikasi
+            const existingIndex = history.findIndex(item => item.episodeSlug === episodeSlug);
+            
+            // Jika sudah ada, hapus entri lama
+            if (existingIndex !== -1) {
+                console.log(`Episode ${episodeSlug} sudah ada di history, menghapus entri lama`);
+                history.splice(existingIndex, 1);
+            }
+            
+            // Pastikan cover tidak kosong
+            if (!cover || cover === "N/A" || cover === "-") {
+                console.log(`Cover untuk ${episodeTitle} kosong, mencoba mendapatkan dari slug anime`);
+                // Coba dapatkan cover dari anime slug jika tersedia
+                const animeInWatchlist = getWatchlist().find(item => item.slug === slug);
+                if (animeInWatchlist && animeInWatchlist.cover) {
+                    cover = animeInWatchlist.cover;
+                    console.log(`Menggunakan cover dari watchlist: ${cover}`);
+                } else {
+                    // Gunakan logo default jika tidak ada cover
+                    cover = "{% static 'img/kortekstream-logo.png' %}";
+                    console.log("Menggunakan logo default sebagai cover");
+                }
+            }
             
             // Limit history to 100 items
             if (history.length >= 100) {
+                console.log("Riwayat tontonan melebihi 100 item, memotong ke 99 item");
                 history = history.slice(0, 99);
             }
             
+            // Log untuk debugging
+            console.log(`Menambahkan ke history: ${episodeTitle}`);
+            console.log(`- Slug anime: ${slug}`);
+            console.log(`- Slug episode: ${episodeSlug}`);
+            console.log(`- Cover: ${cover}`);
+            
             // Add to beginning of array (most recent first)
-            history.unshift({
+            const newHistoryItem = {
                 id: animeId || Date.now(),
                 title: title,
                 slug: slug,
@@ -646,11 +682,35 @@
                 episodeTitle: episodeTitle,
                 cover: cover,
                 watchedAt: new Date().toISOString()
-            });
+            };
             
+            console.log("Menambahkan item baru ke riwayat tontonan:", newHistoryItem);
+            history.unshift(newHistoryItem);
+            
+            // Simpan ke localStorage
             localStorage.setItem('kortekstream_history', JSON.stringify(history));
+            console.log("Riwayat tontonan berhasil disimpan, jumlah item:", history.length);
+            
+            // Verifikasi penyimpanan
+            const savedHistory = localStorage.getItem('kortekstream_history');
+            if (savedHistory) {
+                const parsedHistory = JSON.parse(savedHistory);
+                console.log("Verifikasi: Jumlah riwayat tontonan setelah disimpan:", parsedHistory.length);
+                console.log("Verifikasi: Item pertama di riwayat tontonan:", parsedHistory[0]);
+            } else {
+                console.error("Verifikasi gagal: Riwayat tontonan tidak ditemukan di localStorage setelah disimpan");
+            }
+            
+            // Perbarui tampilan riwayat tontonan jika sedang di halaman beranda
+            if (typeof loadWatchHistoryForHomepage === 'function') {
+                console.log("Memperbarui tampilan riwayat tontonan di halaman beranda");
+                loadWatchHistoryForHomepage();
+            }
+            
+            return true;
         } catch (error) {
             console.error('Error adding to watch history:', error);
+            return false;
         }
     }
     
@@ -813,11 +873,18 @@
                 const historyCard = document.createElement('div');
                 historyCard.className = "group anime-card flex-shrink-0 w-[130px] sm:w-[150px] md:w-[180px] light-bg backdrop-blur-md rounded-lg overflow-hidden light-border hover:bg-primary/10 dark:hover:bg-black/60 transition-all duration-300";
                 
+                // Periksa apakah cover valid
+                const coverUrl = item.cover && item.cover !== "N/A" && item.cover !== "-"
+                    ? item.cover
+                    : "{% static 'img/kortekstream-logo.png' %}"; // Gunakan logo default jika cover tidak valid
+                
+                console.log(`Item history: ${item.episodeTitle}, cover: ${coverUrl}`);
+                
                 historyCard.innerHTML = `
                     <a href="/episode/${item.episodeSlug}" class="block relative overflow-hidden h-full">
                         <!-- Perbaikan: Menambahkan overflow-hidden dan h-full pada container utama -->
                         <div class="relative">
-                            <img src="${item.cover}" alt="${item.title}" class="w-full h-28 sm:h-32 md:h-40 object-cover group-hover:scale-105 transition-transform duration-300">
+                            <img src="${coverUrl}" alt="${item.title}" class="w-full h-28 sm:h-32 md:h-40 object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='{% static 'img/kortekstream-logo.png' %}'">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
                             
                             <!-- Watched Badge -->

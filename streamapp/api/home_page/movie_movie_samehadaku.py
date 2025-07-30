@@ -7,163 +7,127 @@ import concurrent.futures
 import functools
 from django.core.cache import cache
 
-# Tambahkan path ke direktori parent untuk mengimpor detail_anime
+# Baris ini diasumsikan benar untuk struktur proyek Anda
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from anime_detail import detail_anime
 
-# Decorator untuk caching
-def cache_result(ttl=60*60*24):  # Cache selama 24 jam
+# Decorator untuk caching (Tetap dipertahankan)
+def cache_result(ttl=60*60*24):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # Membuat cache key berdasarkan nama fungsi dan argumen
             cache_key = f"cover_cache_{func.__name__}_{args[0]}"
-            
-            # Mencoba mendapatkan data dari cache
             cached_data = cache.get(cache_key)
             if cached_data:
                 return cached_data
-            
-            # Jika tidak ada di cache, jalankan fungsi asli
             result = func(*args, **kwargs)
-            
-            # Simpan hasil ke cache
             if result:
                 cache.set(cache_key, result, ttl)
-            
             return result
         return wrapper
     return decorator
 
 def extract_anime_slug_from_url(url):
-    """
-    Ekstrak anime_slug dari URL anime atau episode
-    """
-    # Coba ekstrak slug dari URL anime
-    anime_match = re.search(r'anime/([^/]+)', url)
-    if anime_match:
-        return anime_match.group(1)
-    
-    # Jika bukan URL anime, coba ekstrak dari URL episode
-    episode_match = re.search(r'([^/]+)-episode-\d+', url)
-    if episode_match:
-        return episode_match.group(1)
-    
-    # Jika tidak ada yang cocok, kembalikan None
+    """Mengekstrak slug anime dari URL untuk membangun URL detail."""
+    match = re.search(r'/anime/([^/]+)/', url)
+    if match:
+        return match.group(1)
     return None
 
 @cache_result()
 def get_better_cover(anime_slug):
-    """
-    Mendapatkan cover yang lebih bagus dari detail anime
-    dengan caching untuk meningkatkan performa
-    """
+    """Mendapatkan URL cover dengan kualitas lebih baik dari halaman detail anime."""
+    if not anime_slug:
+        return None
     try:
-        # Bangun URL detail anime
-        url = f"https://samehadaku.now/anime/{anime_slug}/"
-        
-        # Dapatkan detail anime
+        url = f"https://v1.samehadaku.how/anime/{anime_slug}/"
         anime_details = detail_anime.scrape_anime_details(url)
-        
-        # Jika berhasil, kembalikan cover dari detail anime
         if anime_details and anime_details.get('thumbnail_url') and anime_details['thumbnail_url'] != "N/A":
             return anime_details['thumbnail_url']
     except Exception as e:
-        print(f"Error saat mendapatkan cover yang lebih bagus: {e}")
-    
-    # Jika gagal, kembalikan None
+        print(f"Error saat mengambil cover untuk {anime_slug}: {e}")
     return None
 
 def scrape_project_movies_with_soup(soup, get_better_covers=True):
     """
-    Versi fungsi scrape_project_movies yang menerima objek BeautifulSoup
-    sebagai parameter untuk menghindari pengambilan HTML berulang kali.
-    
-    :param soup: Objek BeautifulSoup yang sudah diinisialisasi
-    :param get_better_covers: Jika True, akan mencoba mendapatkan cover yang lebih bagus dari detail anime
-    :return: List movie
+    Mengambil data movie dari objek BeautifulSoup dengan selector yang sudah diperbaiki.
     """
-    # Temukan div.widgets yang punya h3 "Project Movie Samehadaku"
-    project_section = None
-    for section in soup.select("div.widgets"):
-        h3 = section.find("h3")
-        if h3 and "Project Movie Samehadaku" in h3.text:
-            project_section = section
-            break
-
-    # Ambil movie list hanya dari section ini
     project_movies = []
-    if project_section:
-        movie_list = project_section.select("div.widgetseries ul > li")
-        
-        for li in movie_list:
-            # Judul dan URL
-            title_el = li.select_one("h2 > a.series")
-            title = title_el.text.strip() if title_el else "-"
-            url_movie = title_el["href"] if title_el and title_el.has_attr("href") else "-"
+    
+    # --- PERUBAHAN UTAMA: Selector Langsung ke Target ---
+    # Langsung menargetkan setiap item 'li' di dalam widget series di sidebar
+    # Ini jauh lebih stabil daripada mencari berdasarkan teks 'h3'
+    movie_items = soup.select("aside#sidebar .widgetseries ul li")
+    
+    for item in movie_items:
+        title_el = item.select_one("h2 a.series")
+        if not title_el:
+            continue
 
-            # Cover
-            cover_el = li.select_one("img")
-            cover = cover_el["src"] if cover_el and cover_el.has_attr("src") else "-"
+        # Mengambil genre
+        genre_elements = item.select(".lftinfo span a")
+        genres = [genre.text.strip() for genre in genre_elements]
 
-            # Genre
-            genres_span = li.find("span")
-            genres = []
-            if genres_span:
-                genres = [a.text.strip() for a in genres_span.find_all("a")]
+        # Mengambil tanggal rilis
+        release_date_el = item.select_one(".lftinfo span:last-of-type")
+        release_date = release_date_el.text.strip() if release_date_el and not release_date_el.find('a') else "-"
 
-            # Tanggal rilis (span terakhir)
-            tanggal_span = li.find_all("span")[-1]
-            tanggal = tanggal_span.text.strip() if tanggal_span else "-"
+        project_movies.append({
+            "judul": title_el.text.strip(),
+            "url": title_el.get("href"),
+            "cover": item.select_one("img").get("src") if item.select_one("img") else "-",
+            "genres": genres,
+            "tanggal": release_date
+        })
 
-            project_movies.append({
-                "judul": title,
-                "url": url_movie,
-                "cover": cover,
-                "genres": genres,
-                "tanggal": tanggal
-            })
-
-    # Jika get_better_covers=True, coba dapatkan cover yang lebih bagus untuk setiap movie
     if get_better_covers and project_movies:
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            # Buat tugas untuk setiap movie
-            future_to_movie = {}
-            for i, movie in enumerate(project_movies):
-                anime_slug = extract_anime_slug_from_url(movie['url'])
-                if anime_slug:
-                    future = executor.submit(get_better_cover, anime_slug)
-                    future_to_movie[future] = i
-            
-            # Kumpulkan hasil
-            for future in concurrent.futures.as_completed(future_to_movie):
-                i = future_to_movie[future]
+            future_to_movie_index = {
+                executor.submit(get_better_cover, extract_anime_slug_from_url(movie['url'])): i
+                for i, movie in enumerate(project_movies)
+            }
+            for future in concurrent.futures.as_completed(future_to_movie_index):
+                index = future_to_movie_index[future]
                 try:
                     better_cover = future.result()
                     if better_cover:
-                        project_movies[i]['cover'] = better_cover
-                except Exception as e:
-                    print(f"Error saat mendapatkan cover yang lebih bagus: {e}")
+                        project_movies[index]['cover'] = better_cover
+                except Exception as exc:
+                    print(f"Gagal memproses cover untuk movie di index {index}: {exc}")
 
     return project_movies
 
 def scrape_project_movies(get_better_covers=True):
     """
-    Fungsi original yang mengambil HTML dan melakukan scraping.
-    Sekarang menggunakan scrape_project_movies_with_soup untuk menghindari duplikasi kode.
-    
-    :param get_better_covers: Jika True, akan mencoba mendapatkan cover yang lebih bagus dari detail anime
-    :return: List movie
+    Fungsi utama yang akan dipanggil oleh handler API Anda.
     """
-    url = "https://samehadaku.now/"
+    url = "https://v1.samehadaku.how/"
     headers = {
-        "User-Agent": "Mozilla/5.0"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
-
-    res = requests.get(url, headers=headers)
-    soup = BeautifulSoup(res.text, "lxml")
     
-    return scrape_project_movies_with_soup(soup, get_better_covers)
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, "lxml")
+        return scrape_project_movies_with_soup(soup, get_better_covers)
+    except requests.RequestException as e:
+        print(f"Error saat mengambil halaman utama: {e}")
+        return []
 
-# if __name__ == "__main__":
-#     print(scrape_project_movies())
+# Bagian ini untuk pengujian, pastikan Django terkonfigurasi saat menjalankannya
+if __name__ == '__main__':
+    print("Skrip ini ditujukan untuk diimpor dan dijalankan dalam proyek Django.")
+    print("Mengkonfigurasi pengaturan Django sementara untuk pengujian...")
+    from django.conf import settings
+    if not settings.configured:
+        settings.configure(
+            CACHES = {
+                'default': {
+                    'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                }
+            }
+        )
+    # import json
+    # movies = scrape_project_movies(get_better_covers=False)
+    # print(json.dumps(movies, indent=4, ensure_ascii=False))
