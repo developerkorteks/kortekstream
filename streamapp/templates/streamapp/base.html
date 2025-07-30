@@ -23,7 +23,7 @@
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
     
     <!-- Canonical URL untuk SEO -->
-    <link rel="canonical" href="https://humanmade.my.id/">
+    <link rel="canonical" href="https://kortekstream.online/">
 
     <!-- Favicon -->
     <link rel="icon" href="{% static 'img/kortekstream-logo.png' %}" type="image/png">
@@ -33,7 +33,7 @@
     <meta property="og:title" content="KortekStream - Nonton Anime Subtitle Indonesia">
     <meta property="og:description" content="Situs nonton anime sub Indo gratis dan cepat. Tonton anime favoritmu sekarang di KortekStream!">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://humanmade.my.id/">
+    <meta property="og:url" content="https://kortekstream.online/">
     <meta property="og:image" content="{% static 'img/kortekstream-logo.png' %}">
     <meta property="og:image:width" content="512">
     <meta property="og:image:height" content="512">
@@ -349,11 +349,11 @@
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "KortekStream",
-      "url": "https://humanmade.my.id/",
+      "url": "https://kortekstream.online/",
       "description": "KortekStream adalah situs nonton anime subtitle Indonesia gratis dan mudah diakses. Update anime terbaru setiap hari dengan kualitas HD.",
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://humanmade.my.id/search?q={search_term_string}",
+        "target": "https://kortekstream.online/search?q={search_term_string}",
         "query-input": "required name=search_term_string"
       }
     }
@@ -365,8 +365,8 @@
       "@context": "https://schema.org",
       "@type": "Organization",
       "name": "KortekStream",
-      "url": "https://humanmade.my.id/",
-      "logo": "https://humanmade.my.id/static/img/kortekstream-logo.png",
+      "url": "https://kortekstream.online/",
+      "logo": "https://kortekstream.online/static/img/kortekstream-logo.png",
       "description": "Situs streaming anime subtitle Indonesia terlengkap dan terupdate. Nonton anime favoritmu dengan kualitas HD tanpa iklan yang mengganggu.",
       "sameAs": [
         "https://facebook.com/kortekstream",
@@ -387,7 +387,7 @@
           "@type": "ListItem",
           "position": 1,
           "name": "Beranda",
-          "item": "https://humanmade.my.id/"
+          "item": "https://kortekstream.online/"
         }{% if request.resolver_match.url_name == 'detail_anime' %},
         {
           "@type": "ListItem",
@@ -399,7 +399,7 @@
           "@type": "ListItem",
           "position": 2,
           "name": "Anime",
-          "item": "{% if episode.navigation.all_episodes_url %}https://humanmade.my.id{% url 'streamapp:detail_anime' episode.navigation.all_episodes_url|cut:'https://samehadaku.now/anime/'|cut:'/' %}{% else %}https://humanmade.my.id/anime/{% endif %}"
+          "item": "{% if episode.navigation.all_episodes_url %}https://kortekstream.online{% url 'streamapp:detail_anime' episode.navigation.all_episodes_url|cut:'https://samehadaku.now/anime/'|cut:'/' %}{% else %}https://kortekstream.online/anime/{% endif %}"
         },
         {
           "@type": "ListItem",
