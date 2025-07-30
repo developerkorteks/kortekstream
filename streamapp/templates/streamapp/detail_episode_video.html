@@ -454,6 +454,29 @@
         console.log("Path URL:", '{{ request.path }}');
         console.log("Episode Slug:", episodeSlug);
         
+        // Tambahkan ke riwayat tontonan saat halaman dimuat
+        {% if episode.navigation.all_episodes_url %}
+            {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
+                const currentAnimeSlug = '{{ anime_slug }}';
+                const currentAnimeTitle = '{{ episode.title|escapejs }}'.split(' Episode')[0];
+                const currentAnimeCover = '{{ episode.other_episodes.0.thumbnail_url|default:""|escapejs }}';
+                
+                console.log("Menambahkan ke riwayat tontonan saat halaman dimuat");
+                console.log("Data anime:", {
+                    title: currentAnimeTitle,
+                    slug: currentAnimeSlug,
+                    episodeSlug: episodeSlug,
+                    episodeTitle: episodeTitle,
+                    cover: currentAnimeCover
+                });
+                
+                // Tambahkan ke riwayat tontonan
+                addToWatchHistory(null, currentAnimeTitle, currentAnimeSlug, episodeSlug, episodeTitle, currentAnimeCover);
+                animeAddedToHistory = true;
+                showNotification('Ditambahkan ke riwayat tontonan');
+            {% endwith %}
+        {% endif %}
+        
         // Periksa status watchlist dan favorite
         {% if episode.navigation.all_episodes_url %}
             {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
@@ -473,7 +496,6 @@
                     // Tambahkan event listener untuk play
                     video.addEventListener('play', function() {
                         console.log("Video mulai diputar, memastikan riwayat tontonan ditambahkan");
-                        // Tambahkan ke riwayat tontonan lagi untuk memastikan
                         // Perbaiki format URL dengan menambahkan protokol yang benar
                         const currentEpisodeSlug = '{{ request.path }}';
                         const currentEpisodeTitle = '{{ episode.title|escapejs }}' || 'Episode Tidak Diketahui';
@@ -484,7 +506,20 @@
                                 const currentAnimeTitle = '{{ episode.title|escapejs }}'.split(' Episode')[0];
                                 const currentAnimeCover = '{{ episode.other_episodes.0.thumbnail_url|default:""|escapejs }}';
                                 
-                                addToWatchHistory(null, currentAnimeTitle, currentAnimeSlug, currentEpisodeSlug, currentEpisodeTitle, currentAnimeCover);
+                                console.log("Iframe dimuat, menambahkan ke riwayat tontonan");
+                                // Hanya perbarui timestamp jika sudah ditambahkan sebelumnya
+                                if (animeAddedToHistory) {
+                                    console.log("Video mulai diputar, memperbarui timestamp riwayat tontonan");
+                                    // Perbarui timestamp tanpa menambahkan entri baru
+                                    const history = getWatchHistory();
+                                    if (history.length > 0 && history[0].episodeSlug === currentEpisodeSlug) {
+                                        history[0].watchedAt = new Date().toISOString();
+                                        localStorage.setItem('kortekstream_history', JSON.stringify(history));
+                                        console.log("Timestamp riwayat tontonan diperbarui");
+                                    }
+                                } else {
+                                    console.log("Anime belum ditambahkan ke riwayat sebelumnya, ini tidak seharusnya terjadi");
+                                }
                             {% endwith %}
                         {% endif %}
                     });
@@ -498,7 +533,7 @@
                             console.log(`Video telah diputar selama ${currentTime} detik, memperbarui riwayat tontonan`);
                             lastUpdateTime = currentTime;
                             
-                            // Tambahkan ke riwayat tontonan lagi untuk memastikan
+                            // Perbarui riwayat tontonan jika sudah ditambahkan sebelumnya
                             const currentEpisodeSlug = '{{ request.path }}';
                             const currentEpisodeTitle = '{{ episode.title|escapejs }}' || 'Episode Tidak Diketahui';
                             
@@ -508,7 +543,18 @@
                                     const currentAnimeTitle = '{{ episode.title|escapejs }}'.split(' Episode')[0];
                                     const currentAnimeCover = '{{ episode.other_episodes.0.thumbnail_url|default:""|escapejs }}';
                                     
-                                    addToWatchHistory(null, currentAnimeTitle, currentAnimeSlug, currentEpisodeSlug, currentEpisodeTitle, currentAnimeCover);
+                                    console.log(`Video telah diputar selama ${currentTime} detik, memperbarui riwayat tontonan`);
+                                    // Hanya perbarui timestamp jika sudah ditambahkan sebelumnya
+                                    if (animeAddedToHistory) {
+                                        console.log("Video telah diputar selama 30 detik, memperbarui timestamp riwayat tontonan");
+                                        // Perbarui timestamp tanpa menambahkan entri baru
+                                        const history = getWatchHistory();
+                                        if (history.length > 0 && history[0].episodeSlug === currentEpisodeSlug) {
+                                            history[0].watchedAt = new Date().toISOString();
+                                            localStorage.setItem('kortekstream_history', JSON.stringify(history));
+                                            console.log("Timestamp riwayat tontonan diperbarui setelah 30 detik");
+                                        }
+                                    }
                                 {% endwith %}
                             {% endif %}
                         }
@@ -544,37 +590,20 @@
                                     // Tambahkan ke riwayat tontonan dengan flag watched=true untuk menandai sudah ditonton
                                     // Hanya tambahkan ke riwayat tontonan jika belum ditambahkan
                                     if (!animeAddedToHistory) {
-                                        // Hanya tambahkan ke riwayat tontonan jika belum ditambahkan atau jika sudah 30 detik
-                                        if (!animeAddedToHistory) {
-                                            console.log("Menambahkan anime ke riwayat tontonan setelah 30 detik menonton");
-                                            // Hanya tambahkan ke riwayat tontonan jika belum ditambahkan
-                                            if (!animeAddedToHistory) {
-                                                console.log("Video mulai diputar, menambahkan ke riwayat tontonan");
-                                                // Hanya tambahkan ke riwayat tontonan jika belum ditambahkan atau jika sudah 30 detik
-                                                if (!animeAddedToHistory) {
-                                                    console.log("Video telah diputar selama 30 detik, menambahkan ke riwayat tontonan");
-                                                    // Hanya tambahkan ke riwayat tontonan jika belum ditambahkan
-                                                    if (!animeAddedToHistory) {
-                                                        console.log("Video mulai diputar, menambahkan ke riwayat tontonan");
-                                                        addToWatchHistory(null, currentAnimeTitle, currentAnimeSlug, currentEpisodeSlug, currentEpisodeTitle, currentAnimeCover);
-                                                        animeAddedToHistory = true;
-                                                        showNotification('Ditambahkan ke riwayat tontonan');
-                                                    }
-                                                    animeAddedToHistory = true;
-                                                    showNotification('Ditambahkan ke riwayat tontonan setelah 30 detik menonton');
-                                                }
-                                                animeAddedToHistory = true;
-                                                showNotification('Ditambahkan ke riwayat tontonan');
+                                        // Hanya perbarui timestamp jika sudah ditambahkan sebelumnya
+                                        if (animeAddedToHistory) {
+                                            console.log("Iframe dimuat, memperbarui timestamp riwayat tontonan");
+                                            // Perbarui timestamp tanpa menambahkan entri baru
+                                            const history = getWatchHistory();
+                                            if (history.length > 0 && history[0].episodeSlug === currentEpisodeSlug) {
+                                                history[0].watchedAt = new Date().toISOString();
+                                                localStorage.setItem('kortekstream_history', JSON.stringify(history));
+                                                console.log("Timestamp riwayat tontonan diperbarui");
                                             }
-                                            animeAddedToHistory = true;
-                                            showNotification('Ditambahkan ke riwayat tontonan setelah 30 detik menonton');
+                                        } else {
+                                            console.log("Anime belum ditambahkan ke riwayat sebelumnya, ini tidak seharusnya terjadi");
                                         }
-                                        animeAddedToHistory = true;
-                                        showNotification('Ditambahkan ke riwayat tontonan');
                                     }
-                                    
-                                    // Tampilkan notifikasi
-                                    showNotification('Ditambahkan ke riwayat tontonan');
                                 {% endwith %}
                             {% endif %}
                         });
@@ -583,6 +612,38 @@
             }
         }, 2000); // Tunggu 2 detik untuk memastikan player sudah dimuat
     });
+    
+    // Fungsi untuk memverifikasi dan memperbaiki URL gambar sampul
+    function verifyAndFixCoverUrl(cover, title) {
+        // Jika cover tidak valid, gunakan default
+        if (!cover || cover === 'undefined' || cover === 'null' || cover === '' || cover === 'N/A' || cover === '-') {
+            console.log(`Cover tidak valid untuk ${title}, menggunakan default`);
+            return '/static/img/kortekstream-logo.png';
+        }
+        
+        // Perbaiki format URL jika perlu
+        let fixedCover = cover;
+        
+        // Periksa apakah URL cover menggunakan format yang salah (https:v1.samehadaku.how tanpa //)
+        if (fixedCover.startsWith('https:v1.samehadaku.how')) {
+            console.log(`Format URL cover tidak valid untuk ${title}, memperbaiki: ${fixedCover}`);
+            fixedCover = fixedCover.replace('https:v1.samehadaku.how', 'https://v1.samehadaku.how');
+        }
+        
+        // Pastikan URL cover valid
+        if (!fixedCover.startsWith('http') && !fixedCover.startsWith('/')) {
+            console.warn(`URL cover tidak valid untuk ${title}: ${fixedCover}`);
+            return '/static/img/kortekstream-logo.png';
+        }
+        
+        // Periksa apakah file logo.png ada, jika tidak gunakan kortekstream-logo.png
+        if (fixedCover === "/static/img/logo.png") {
+            console.log(`Menggunakan kortekstream-logo.png sebagai pengganti logo.png untuk ${title}`);
+            return "/static/img/kortekstream-logo.png";
+        }
+        
+        return fixedCover;
+    }
     
     // Watchlist Functions
     function getWatchlist() {
@@ -609,7 +670,16 @@
     
     function addToWatchlist(animeId, title, slug, cover) {
         try {
+            console.log("addToWatchlist dipanggil dengan:", {
+                animeId, title, slug,
+                cover: cover ? (cover.length > 30 ? cover.substring(0, 30) + '...' : cover) : 'undefined'
+            });
+            
             const watchlist = getWatchlist();
+            
+            // Verifikasi dan perbaiki URL gambar sampul
+            const fixedCover = verifyAndFixCoverUrl(cover, title);
+            console.log("URL cover setelah diperbaiki:", fixedCover.substring(0, 30) + (fixedCover.length > 30 ? '...' : ''));
             
             // Check if anime is already in watchlist
             if (!watchlist.some(item => item.slug === slug)) {
@@ -617,13 +687,15 @@
                     id: animeId || Date.now(),
                     title: title,
                     slug: slug,
-                    cover: cover,
+                    cover: fixedCover,
                     addedAt: new Date().toISOString()
                 });
                 
                 localStorage.setItem('kortekstream_watchlist', JSON.stringify(watchlist));
+                console.log("Anime berhasil ditambahkan ke watchlist");
                 return true;
             }
+            console.log("Anime sudah ada di watchlist");
             return false;
         } catch (error) {
             console.error('Error adding to watchlist:', error);
@@ -697,7 +769,16 @@
     
     function addToFavorites(animeId, title, slug, cover) {
         try {
+            console.log("addToFavorites dipanggil dengan:", {
+                animeId, title, slug,
+                cover: cover ? (cover.length > 30 ? cover.substring(0, 30) + '...' : cover) : 'undefined'
+            });
+            
             const favorites = getFavorites();
+            
+            // Verifikasi dan perbaiki URL gambar sampul
+            const fixedCover = verifyAndFixCoverUrl(cover, title);
+            console.log("URL cover setelah diperbaiki:", fixedCover.substring(0, 30) + (fixedCover.length > 30 ? '...' : ''));
             
             // Check if anime is already in favorites
             if (!favorites.some(item => item.slug === slug)) {
@@ -705,13 +786,15 @@
                     id: animeId || Date.now(),
                     title: title,
                     slug: slug,
-                    cover: cover,
+                    cover: fixedCover,
                     addedAt: new Date().toISOString()
                 });
                 
                 localStorage.setItem('kortekstream_favorites', JSON.stringify(favorites));
+                console.log("Anime berhasil ditambahkan ke favorit");
                 return true;
             }
+            console.log("Anime sudah ada di favorit");
             return false;
         } catch (error) {
             console.error('Error adding to favorites:', error);
@@ -786,7 +869,8 @@
     
     function addToWatchHistory(animeId, title, slug, episodeSlug, episodeTitle, cover) {
         console.log("addToWatchHistory dipanggil dengan:", {
-            animeId, title, slug, episodeSlug, episodeTitle, cover
+            animeId, title, slug, episodeSlug, episodeTitle,
+            cover: cover ? (cover.length > 30 ? cover.substring(0, 30) + '...' : cover) : 'undefined'
         });
         
         try {
@@ -833,10 +917,28 @@
                 history.splice(existingIndex, 1);
             }
             
-            // Pastikan cover tidak kosong
-            if (!cover || cover === 'undefined' || cover === '') {
-                console.log("Cover kosong, menggunakan logo default");
-                cover = '/static/img/logo.png'; // Gunakan logo default
+            // Pastikan cover tidak kosong atau tidak valid
+            if (!cover || cover === 'undefined' || cover === 'null' || cover === '' || cover === 'N/A' || cover === '-') {
+                console.log("Cover tidak valid, menggunakan logo default");
+                cover = '/static/img/kortekstream-logo.png'; // Gunakan logo default
+            }
+            
+            // Pastikan URL cover valid
+            if (cover && !cover.startsWith('http') && !cover.startsWith('/')) {
+                console.log("URL cover tidak valid, menggunakan default:", cover);
+                cover = '/static/img/kortekstream-logo.png';
+            }
+            
+            // Periksa apakah URL cover menggunakan format yang salah (https:v1.samehadaku.how tanpa //)
+            if (cover && cover.startsWith('https:v1.samehadaku.how')) {
+                console.log("Format URL cover tidak valid, memperbaiki:", cover);
+                cover = cover.replace('https:v1.samehadaku.how', 'https://v1.samehadaku.how');
+            }
+            
+            // Periksa apakah file logo.png ada, jika tidak gunakan kortekstream-logo.png
+            if (cover === "/static/img/logo.png") {
+                console.log("Menggunakan kortekstream-logo.png sebagai pengganti logo.png");
+                cover = "/static/img/kortekstream-logo.png";
             }
             
             // Add to beginning of array (most recent first)

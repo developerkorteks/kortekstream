@@ -33,6 +33,11 @@ function getWatchHistory() {
  */
 function addToWatchHistory(animeId, title, slug, episodeSlug, episodeTitle, cover) {
     try {
+        console.log("addToWatchHistory dipanggil dengan:", {
+            title, slug, episodeSlug, episodeTitle,
+            cover: cover ? (cover.length > 30 ? cover.substring(0, 30) + '...' : cover) : 'undefined'
+        });
+        
         let history = getWatchHistory();
         
         // Limit history to MAX_HISTORY_ITEMS items
@@ -40,21 +45,104 @@ function addToWatchHistory(animeId, title, slug, episodeSlug, episodeTitle, cove
             history = history.slice(0, MAX_HISTORY_ITEMS - 1);
         }
         
-        // Remove existing entry with same episode if exists
-        history = history.filter(item => item.episodeSlug !== episodeSlug);
+        // Normalisasi slug dan episodeSlug untuk pencocokan yang lebih baik
+        // Tangani kasus khusus untuk domain yang berubah (https:v1.samehadaku.how)
+        let normalizedEpisodeSlug = episodeSlug;
+        
+        // Hapus prefix /episode/ jika ada
+        normalizedEpisodeSlug = normalizedEpisodeSlug.replace(/^\/episode\//, '');
+        
+        // Tangani kasus URL dengan format yang salah (https:v1.samehadaku.how tanpa //)
+        if (normalizedEpisodeSlug.startsWith('https:v1.samehadaku.how')) {
+            normalizedEpisodeSlug = normalizedEpisodeSlug.replace('https:v1.samehadaku.how', '');
+        }
+        
+        // Hapus domain lainnya jika ada
+        normalizedEpisodeSlug = normalizedEpisodeSlug.replace(/^https?:\/\/[^\/]+\//, '');
+        
+        console.log("episodeSlug dinormalisasi:", episodeSlug, "->", normalizedEpisodeSlug);
+        
+        // Normalisasi slug anime juga
+        let normalizedSlug = slug || '';
+        
+        // Hapus prefix /anime/ jika ada
+        normalizedSlug = normalizedSlug.replace(/^\/anime\//, '');
+        
+        // Tangani kasus URL dengan format yang salah (https:v1.samehadaku.how tanpa //)
+        if (normalizedSlug.startsWith('https:v1.samehadaku.how')) {
+            normalizedSlug = normalizedSlug.replace('https:v1.samehadaku.how/anime/', '');
+        }
+        
+        // Hapus domain lainnya jika ada
+        normalizedSlug = normalizedSlug.replace(/^https?:\/\/[^\/]+\/anime\//, '');
+        
+        console.log("slug anime dinormalisasi:", slug, "->", normalizedSlug);
+        
+        // Cek apakah ada entri dengan episodeSlug yang sama (setelah normalisasi)
+        const existingIndex = history.findIndex(item => {
+            const itemEpisodeSlug = item.episodeSlug.replace(/^\/episode\//, '').replace(/^https?:\/\/[^\/]+\//, '');
+            return itemEpisodeSlug === normalizedEpisodeSlug ||
+                  itemEpisodeSlug.includes(normalizedEpisodeSlug) ||
+                  normalizedEpisodeSlug.includes(itemEpisodeSlug);
+        });
+        
+        if (existingIndex !== -1) {
+            console.log("Entri sudah ada di indeks", existingIndex, "dengan episodeSlug", history[existingIndex].episodeSlug);
+            // Hapus entri yang sudah ada
+            history.splice(existingIndex, 1);
+        }
+        
+        // Pastikan cover tidak kosong atau tidak valid
+if (!cover || cover === "undefined" || cover === "N/A" || cover === "-" || cover === "" || cover === "null") {
+console.log("Cover tidak valid, menggunakan default");
+cover = "/static/img/kortekstream-logo.png"; // Gunakan logo default
+}
+
+// Pastikan URL cover valid
+if (cover && !cover.startsWith('http') && !cover.startsWith('/')) {
+console.log("URL cover tidak valid, menggunakan default:", cover);
+cover = "/static/img/kortekstream-logo.png";
+}
+
+// Periksa apakah URL cover menggunakan format yang salah (https:v1.samehadaku.how tanpa //)
+if (cover && cover.startsWith('https:v1.samehadaku.how')) {
+console.log("Format URL cover tidak valid, memperbaiki:", cover);
+cover = cover.replace('https:v1.samehadaku.how', 'https://v1.samehadaku.how');
+}
+
+// Periksa apakah file logo.png ada, jika tidak gunakan kortekstream-logo.png
+if (cover === "/static/img/logo.png") {
+console.log("Menggunakan kortekstream-logo.png sebagai pengganti logo.png");
+cover = "/static/img/kortekstream-logo.png";
+}
         
         // Add to beginning of array (most recent first)
         history.unshift({
             id: animeId || Date.now(),
-            title: title,
-            slug: slug,
-            episodeSlug: episodeSlug,
-            episodeTitle: episodeTitle,
+            title: title || "Anime Tidak Diketahui",
+            slug: normalizedSlug,
+            episodeSlug: normalizedEpisodeSlug, // Simpan episodeSlug yang sudah dinormalisasi
+            episodeTitle: episodeTitle || "Episode Tidak Diketahui",
             cover: cover,
             watchedAt: new Date().toISOString()
         });
         
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+        // Deduplikasi riwayat berdasarkan episodeSlug
+        const uniqueHistory = [];
+        const seenEpisodeSlugs = new Set();
+        
+        for (const item of history) {
+            const normalizedItemSlug = item.episodeSlug.replace(/^\/episode\//, '').replace(/^https?:\/\/[^\/]+\//, '');
+            if (!seenEpisodeSlugs.has(normalizedItemSlug)) {
+                seenEpisodeSlugs.add(normalizedItemSlug);
+                uniqueHistory.push(item);
+            }
+        }
+        
+        console.log(`Deduplikasi: ${history.length} item -> ${uniqueHistory.length} item unik`);
+        
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(uniqueHistory));
+        console.log("Riwayat disimpan, jumlah item:", uniqueHistory.length);
         return true;
     } catch (error) {
         console.error('Error adding to watch history:', error);
@@ -158,7 +246,7 @@ function loadWatchHistoryToEpisode(containerId = 'history-container') {
                 <a href="/episode/${item.episodeSlug}" class="block"
                    onclick="console.log('Navigasi riwayat ke episode: ' + (this.href || window.location.origin + '/episode/' + item.episodeSlug))">
                     <div class="relative pb-[140%] overflow-hidden">
-                        <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+                        <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='/static/img/kortekstream-logo.png'; console.log('Gambar sampul gagal dimuat, menggunakan default:', this.alt);">
                         
                         <div class="absolute top-2 right-2 bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded-md">
                             <i class="fas fa-play mr-1"></i> Ditonton

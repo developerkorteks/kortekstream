@@ -198,12 +198,18 @@
         
         let html = '';
         watchlist.forEach(item => {
+            // Verifikasi dan perbaiki URL gambar sampul
+            let coverUrl = verifyAndFixCoverUrl(item.cover, item.title);
+            
+            // Simpan URL yang sudah diperbaiki kembali ke item
+            item.cover = coverUrl;
+            
             html += `
                 <div class="anime-card dynamic-border light-bg rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 light-border">
                     <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block"
                        onclick="console.log('Navigasi watchlist ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
                         <div class="relative pb-[140%] overflow-hidden">
-                            <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+                            <img src="${coverUrl}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='{% static 'img/kortekstream-logo.png' %}'; console.log('Gambar sampul gagal dimuat, menggunakan default:', this.alt);">
                             
                             <div class="absolute top-2 right-2 bg-primary dark:bg-darkPrimary text-white text-xs font-bold px-2 py-1 rounded-md">
                                 Watchlist
@@ -277,12 +283,18 @@
         
         let html = '';
         favorites.forEach(item => {
+            // Verifikasi dan perbaiki URL gambar sampul
+            let coverUrl = verifyAndFixCoverUrl(item.cover, item.title);
+            
+            // Simpan URL yang sudah diperbaiki kembali ke item
+            item.cover = coverUrl;
+            
             html += `
                 <div class="anime-card dynamic-border light-bg rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 light-border">
                     <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block"
                        onclick="console.log('Navigasi favorit ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
                         <div class="relative pb-[140%] overflow-hidden">
-                            <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+                            <img src="${coverUrl}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='{% static 'img/kortekstream-logo.png' %}'; console.log('Gambar sampul gagal dimuat, menggunakan default:', this.alt);">
                             
                             <div class="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-md">
                                 <i class="fas fa-heart mr-1"></i> Favorit
@@ -351,35 +363,103 @@
             return;
         }
         
-        // Hapus duplikasi berdasarkan episodeSlug
-        const uniqueHistory = [];
+        // Verifikasi bahwa riwayat sudah dideduplikasi oleh history.js
+        // Hitung jumlah episodeSlug unik
         const episodeSlugs = new Set();
-        
         history.forEach(item => {
-            if (!episodeSlugs.has(item.episodeSlug)) {
-                episodeSlugs.add(item.episodeSlug);
-                uniqueHistory.push(item);
+            // Normalisasi episodeSlug untuk penanganan domain yang berubah
+            let normalizedSlug = item.episodeSlug || '';
+            
+            // Hapus prefix /episode/ jika ada
+            normalizedSlug = normalizedSlug.replace(/^\/episode\//, '');
+            
+            // Tangani kasus URL dengan format yang salah (https:v1.samehadaku.how tanpa //)
+            if (normalizedSlug.startsWith('https:v1.samehadaku.how')) {
+                normalizedSlug = normalizedSlug.replace('https:v1.samehadaku.how', '');
             }
+            
+            // Hapus domain lainnya jika ada
+            normalizedSlug = normalizedSlug.replace(/^https?:\/\/[^\/]+\//, '');
+            
+            episodeSlugs.add(normalizedSlug);
         });
         
-        console.log(`Riwayat asli: ${history.length} item, setelah deduplikasi: ${uniqueHistory.length} item`);
+        console.log(`Verifikasi deduplikasi: ${history.length} item, ${episodeSlugs.size} episodeSlug unik`);
         
-        // Simpan kembali history yang sudah dideduplikasi
-        localStorage.setItem('kortekstream_history', JSON.stringify(uniqueHistory));
+        // Jika jumlah item tidak sama dengan jumlah episodeSlug unik, masih ada duplikasi
+        if (history.length !== episodeSlugs.size) {
+            console.warn(`Masih ada duplikasi dalam riwayat: ${history.length - episodeSlugs.size} item duplikat`);
+            
+            // Deduplikasi lagi sebagai fallback
+            let uniqueHistoryArray = [];
+            const seenSlugs = new Set();
+            
+            history.forEach(item => {
+                // Normalisasi episodeSlug untuk penanganan domain yang berubah
+                let normalizedSlug = item.episodeSlug || '';
+                
+                // Hapus prefix /episode/ jika ada
+                normalizedSlug = normalizedSlug.replace(/^\/episode\//, '');
+                
+                // Tangani kasus URL dengan format yang salah (https:v1.samehadaku.how tanpa //)
+                if (normalizedSlug.startsWith('https:v1.samehadaku.how')) {
+                    normalizedSlug = normalizedSlug.replace('https:v1.samehadaku.how', '');
+                }
+                
+                // Hapus domain lainnya jika ada
+                normalizedSlug = normalizedSlug.replace(/^https?:\/\/[^\/]+\//, '');
+                
+                if (!seenSlugs.has(normalizedSlug)) {
+                    seenSlugs.add(normalizedSlug);
+                    uniqueHistoryArray.push(item);
+                }
+            });
+            
+            console.log(`Deduplikasi fallback: ${history.length} item -> ${uniqueHistoryArray.length} item unik`);
+            
+            // Simpan kembali history yang sudah dideduplikasi
+            localStorage.setItem('kortekstream_history', JSON.stringify(uniqueHistoryArray));
+            
+            // Gunakan history yang sudah dideduplikasi
+            history = uniqueHistoryArray;
+        }
         
         let html = '';
-        uniqueHistory.forEach(item => {
-            // Periksa apakah cover valid
-            const coverUrl = item.cover && item.cover !== "N/A" && item.cover !== "-"
-                ? item.cover
-                : "{% static 'img/kortekstream-logo.png' %}"; // Gunakan logo default jika cover tidak valid
+        console.log("Memuat riwayat tontonan dengan jumlah item:", history.length);
+        
+        // Log beberapa item pertama untuk debugging
+        if (history.length > 0) {
+            console.log("Contoh item riwayat pertama:", {
+                title: history[0].title,
+                episodeTitle: history[0].episodeTitle,
+                slug: history[0].slug,
+                episodeSlug: history[0].episodeSlug,
+                cover: history[0].cover,
+                watchedAt: history[0].watchedAt
+            });
+        }
+        
+        history.forEach(item => {
+            // Verifikasi dan perbaiki URL gambar sampul
+            let coverUrl = verifyAndFixCoverUrl(item.cover, item.title);
+            
+            // Log untuk verifikasi
+            if (coverUrl === "{% static 'img/kortekstream-logo.png' %}") {
+                console.log(`Menggunakan gambar default untuk ${item.title} karena cover tidak valid: ${item.cover}`);
+            } else {
+                console.log(`Menggunakan cover untuk ${item.title}: ${coverUrl.substring(0, 30)}...`);
+            }
+            
+            // Simpan URL yang sudah diperbaiki kembali ke item
+            // Ini membantu jika item ini digunakan kembali di tempat lain
+            item.cover = coverUrl;
             
             html += `
                 <div class="anime-card dynamic-border light-bg rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 light-border">
                     <a href="/episode/${item.episodeSlug}" class="block"
                        onclick="console.log('Navigasi riwayat ke episode: ' + (this.href || window.location.origin + '/episode/' + item.episodeSlug))">
                         <div class="relative pb-[140%] overflow-hidden">
-                            <img src="${coverUrl}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='{% static 'img/kortekstream-logo.png' %}'">
+                            <img src="${coverUrl}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='{% static 'img/kortekstream-logo.png' %}'; console.log('Gambar sampul gagal dimuat, menggunakan default:', this.alt);">
                             
                             <div class="absolute top-2 right-2 bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded-md">
                                 <i class="fas fa-play mr-1"></i> Ditonton
@@ -425,12 +505,49 @@
         }
     }
     
+    // Fungsi untuk memverifikasi dan memperbaiki URL gambar sampul
+    function verifyAndFixCoverUrl(cover, title) {
+        // Jika cover tidak valid, gunakan default
+        if (!cover || cover === "undefined" || cover === "null" || cover === "" || cover === "N/A" || cover === "-") {
+            console.log(`Cover tidak valid untuk ${title}, menggunakan default`);
+            return "{% static 'img/kortekstream-logo.png' %}";
+        }
+        
+        // Jika cover sudah menggunakan URL default, kembalikan apa adanya
+        if (cover === "{% static 'img/kortekstream-logo.png' %}") {
+            return cover;
+        }
+        
+        // Perbaiki format URL jika perlu
+        let fixedCover = cover;
+        
+        // Periksa apakah URL cover menggunakan format yang salah (https:v1.samehadaku.how tanpa //)
+        if (fixedCover.startsWith('https:v1.samehadaku.how')) {
+            console.log(`Format URL cover tidak valid untuk ${title}, memperbaiki: ${fixedCover}`);
+            fixedCover = fixedCover.replace('https:v1.samehadaku.how', 'https://v1.samehadaku.how');
+        }
+        
+        // Pastikan URL cover valid
+        if (!fixedCover.startsWith('http') && !fixedCover.startsWith('/')) {
+            console.warn(`URL cover tidak valid untuk ${title}: ${fixedCover}`);
+            return "{% static 'img/kortekstream-logo.png' %}";
+        }
+        
+        // Periksa apakah file logo.png ada, jika tidak gunakan kortekstream-logo.png
+        if (fixedCover === "/static/img/logo.png") {
+            console.log(`Menggunakan kortekstream-logo.png sebagai pengganti logo.png untuk ${title}`);
+            return "{% static 'img/kortekstream-logo.png' %}";
+        }
+        
+        return fixedCover;
+    }
+    
     // Helper Functions
     function formatDate(dateString) {
         const date = new Date(dateString);
-        return date.toLocaleDateString('id-ID', { 
-            year: 'numeric', 
-            month: 'short', 
+        return date.toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: 'short',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
