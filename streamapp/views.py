@@ -484,9 +484,47 @@ async def detail_episode_video(request, episode_slug=None):
         return render(request, 'streamapp/detail_episode_video.html', {'error': 'Episode tidak ditemukan'})
     
     try:
-        # Bangun URL lengkap
-        base_url = "https://samehadaku.now/"
-        episode_url = f"{base_url}{episode_slug}/"
+        # Tambahkan logging untuk debug
+        print(f"DEBUG - episode_slug yang diterima: {episode_slug}")
+        
+        # Bangun URL lengkap dengan penanganan URL yang lebih baik
+        # Periksa apakah episode_slug sudah berisi URL lengkap atau domain
+        if episode_slug.startswith(('http://', 'https://')):
+            # Jika episode_slug sudah berupa URL lengkap, gunakan langsung
+            episode_url = episode_slug
+            print(f"DEBUG - Menggunakan URL lengkap dari slug: {episode_url}")
+        elif ':' in episode_slug:
+            # Jika episode_slug berisi karakter ':' (seperti https:v1.samehadaku.how...)
+            # Ini menandakan URL yang tidak valid, coba perbaiki
+            print(f"DEBUG - Mendeteksi URL tidak valid dengan ':': {episode_slug}")
+            
+            # Coba ekstrak bagian yang valid
+            if 'v1.samehadaku.how' in episode_slug:
+                # Jika berisi domain v1.samehadaku.how, gunakan domain tersebut
+                # Pisahkan domain dan path dengan benar
+                parts = episode_slug.replace('https:', 'https://').split('how')
+                if len(parts) > 1:
+                    domain = parts[0] + 'how'
+                    path = parts[1]
+                    # Pastikan ada garis miring (/) antara domain dan path
+                    episode_url = f"{domain}/{path.lstrip('/')}"
+                else:
+                    # Fallback jika pemisahan gagal
+                    episode_url = episode_slug.replace('https:', 'https://')
+                
+                print(f"DEBUG - URL diperbaiki menjadi: {episode_url}")
+            else:
+                # Jika format tidak dikenali, gunakan base_url default
+                base_url = "https://samehadaku.now/"
+                # Hapus bagian yang mungkin berisi protokol tidak valid
+                clean_slug = episode_slug.split(':')[-1]
+                episode_url = f"{base_url}{clean_slug}/"
+                print(f"DEBUG - URL dibersihkan menjadi: {episode_url}")
+        else:
+            # Jika episode_slug adalah slug biasa, gunakan base_url
+            base_url = "https://samehadaku.now/"
+            episode_url = f"{base_url}{episode_slug}/"
+            print(f"DEBUG - URL dibangun dengan base_url: {episode_url}")
         
         # Dapatkan data detail episode dengan caching
         episode_data = await get_detail_episode_data(episode_url)
