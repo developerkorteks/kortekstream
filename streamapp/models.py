@@ -11,11 +11,12 @@ logger = logging.getLogger(__name__)
 
 class APIEndpoint(models.Model):
     """
-    Model untuk menyimpan URL API dengan prioritas.
+    Model untuk menyimpan URL API dengan prioritas dan domain sumber.
     API dengan prioritas lebih tinggi akan dicoba terlebih dahulu.
     """
     name = models.CharField(max_length=100, verbose_name="Nama API")
     url = models.URLField(max_length=255, verbose_name="URL API")
+    source_domain = models.CharField(max_length=255, verbose_name="Domain Sumber Data", default="v1.samehadaku.how", help_text="Domain sumber data yang digunakan untuk memformat URL gambar dan link")
     priority = models.IntegerField(default=0, verbose_name="Prioritas (semakin tinggi semakin diprioritaskan)")
     is_active = models.BooleanField(default=True, verbose_name="Aktif")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Dibuat pada")

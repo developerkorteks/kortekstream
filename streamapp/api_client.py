@@ -41,23 +41,25 @@ def get_api_endpoints():
     
     return endpoints
 
-def create_temp_endpoint(url, name="Default"):
+def create_temp_endpoint(url, name="Default", source_domain="v1.samehadaku.how"):
     """
     Create a temporary endpoint object.
     
     Args:
         url: API endpoint URL
         name: API endpoint name
+        source_domain: Domain sumber data
         
     Returns:
         Temporary endpoint object
     """
     class TempEndpoint:
-        def __init__(self, url, name):
+        def __init__(self, url, name, source_domain):
             self.url = url
             self.name = name
+            self.source_domain = source_domain
     
-    return TempEndpoint(url, name)
+    return TempEndpoint(url, name, source_domain)
 
 
 class FallbackAPIClient:
@@ -83,6 +85,29 @@ class FallbackAPIClient:
             "success_count": 0,
             "error_log": []
         }
+        # Domain sumber yang sedang digunakan
+        self.current_source_domain = None
+    
+    def get_current_source_domain(self):
+        """
+        Mendapatkan domain sumber yang sedang digunakan.
+        Jika tidak ada, gunakan domain dari endpoint yang sedang digunakan.
+        Jika tidak ada endpoint yang sedang digunakan, gunakan default dari SiteConfiguration.
+        
+        Returns:
+            Domain sumber yang sedang digunakan
+        """
+        # Jika sudah ada domain sumber yang disimpan, gunakan itu
+        if self.current_source_domain:
+            return self.current_source_domain
+        
+        # Jika ada endpoint yang sedang digunakan, gunakan domain dari endpoint tersebut
+        if self.current_api.get("endpoint") and hasattr(self.current_api["endpoint"], "source_domain"):
+            return self.current_api["endpoint"].source_domain
+        
+        # Jika tidak ada, gunakan default dari SiteConfiguration
+        from .models import SiteConfiguration
+        return SiteConfiguration.get_config('SOURCE_DOMAIN', 'v1.samehadaku.how')
     
     def refresh_endpoints(self):
         """
@@ -402,6 +427,16 @@ class FallbackAPIClient:
                     "error_log": self.current_api.get("error_log", [])
                 }
                 
+                # Update current source domain
+                if hasattr(api_endpoint, 'source_domain'):
+                    self.current_source_domain = api_endpoint.source_domain
+                    logger.info(f"Using source domain: {self.current_source_domain}")
+                
+                # Update current source domain
+                if hasattr(api_endpoint, 'source_domain'):
+                    self.current_source_domain = api_endpoint.source_domain
+                    logger.info(f"Using source domain: {self.current_source_domain}")
+                
                 logger.info(f"Successfully got response from {url}")
                 return result
                 
@@ -516,14 +551,19 @@ class FallbackAPIClient:
                 status = "error"
                 message = f"Error saat mendapatkan status: {e}"
         
+        # Dapatkan domain sumber yang sedang digunakan
+        source_domain = self.get_current_source_domain()
+        
         return {
             "status": status,
             "message": message,
             "endpoint": {
                 "name": endpoint.name,
                 "url": endpoint.url,
-                "priority": endpoint.priority
+                "priority": endpoint.priority,
+                "source_domain": getattr(endpoint, 'source_domain', source_domain)
             } if endpoint else None,
+            "source_domain": source_domain,
             "last_used": self.current_api.get("last_used"),
             "success_count": self.current_api.get("success_count", 0),
             "error_log": self.current_api.get("error_log", [])

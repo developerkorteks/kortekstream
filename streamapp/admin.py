@@ -6,14 +6,14 @@ from .models import Advertisement, SiteConfiguration, APIEndpoint, APIMonitor
 
 @admin.register(APIEndpoint)
 class APIEndpointAdmin(admin.ModelAdmin):
-    list_display = ('name', 'url', 'priority', 'is_active', 'updated_at')
-    list_filter = ('is_active',)
-    search_fields = ('name', 'url')
+    list_display = ('name', 'url', 'source_domain', 'priority', 'is_active', 'updated_at')
+    list_filter = ('is_active', 'source_domain')
+    search_fields = ('name', 'url', 'source_domain')
     list_editable = ('priority', 'is_active')
     ordering = ('-priority', 'name')
     fieldsets = (
         ('Informasi API', {
-            'fields': ('name', 'url')
+            'fields': ('name', 'url', 'source_domain')
         }),
         ('Pengaturan', {
             'fields': ('priority', 'is_active')

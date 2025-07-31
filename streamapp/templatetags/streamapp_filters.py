@@ -3,6 +3,7 @@ from django.utils.safestring import mark_safe
 from django.core.cache import cache
 import re
 from ..models import SiteConfiguration
+from ..api_client import FallbackAPIClient
 import logging
 
 register = template.Library()
@@ -17,7 +18,16 @@ def get_source_domain_from_cache():
     Mendapatkan domain sumber data dari cache.
     Jika tidak ada di cache, gunakan nilai default.
     """
-    # Coba ambil dari cache terlebih dahulu
+    try:
+        # Coba dapatkan dari FallbackAPIClient terlebih dahulu
+        api_client = FallbackAPIClient()
+        source_domain = api_client.get_current_source_domain()
+        if source_domain:
+            return source_domain
+    except Exception as e:
+        logger.error(f"Error getting source domain from FallbackAPIClient: {e}")
+    
+    # Jika gagal, gunakan cache
     source_domain = cache.get(SOURCE_DOMAIN_CACHE_KEY)
     
     # Jika tidak ada di cache, gunakan nilai default
@@ -98,6 +108,37 @@ def extract_episode_slug(url):
     
     return url
 
+@register.filter
+def format_url(url):
+    """
+    Memformat URL dengan domain sumber yang benar.
+    Contoh: /path/to/image.jpg -> https://domain.com/path/to/image.jpg
+    """
+    if not url:
+        return ""
+    
+    # Jika URL sudah memiliki protokol, kembalikan apa adanya
+    if url.startswith('http://') or url.startswith('https://'):
+        return url
+    
+    # Dapatkan domain sumber data
+    source_domain = get_source_domain_from_cache()
+    
+    # Pastikan source_domain adalah string
+    if source_domain is not None:
+        source_domain = str(source_domain)
+    else:
+        source_domain = DEFAULT_SOURCE_DOMAIN
+    
+    # Pastikan URL tidak dimulai dengan // jika dimulai dengan /
+    if url.startswith('/'):
+        url = url[1:]
+    
+    # Format URL dengan domain sumber
+    formatted_url = f'https://{source_domain}/{url}'
+    
+    return formatted_url
+
 @register.simple_tag
 def get_site_config(key, default=""):
     """
@@ -120,3 +161,10 @@ def get_site_config(key, default=""):
             value = default
     
     return value
+
+@register.simple_tag
+def get_current_source_domain():
+    """
+    Mendapatkan domain sumber data yang sedang aktif.
+    """
+    return get_source_domain_from_cache()

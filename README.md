@@ -29,6 +29,7 @@ KortekStream mengimplementasikan sistem fallback API yang memungkinkan aplikasi 
 - **Prioritas API**: API dengan prioritas lebih tinggi akan dicoba terlebih dahulu
 - **Exponential Backoff**: Menghindari mencoba API yang gagal terlalu sering
 - **Monitoring Status**: Memantau status dan performa setiap API endpoint
+- **Domain Sumber Otomatis**: Secara otomatis menggunakan domain sumber yang sesuai dengan API yang sedang digunakan
 
 ### Komponen Sistem Fallback API
 
@@ -88,6 +89,8 @@ class APIEndpoint(models.Model):
     """
     name = models.CharField(max_length=100, verbose_name="Nama API")
     url = models.URLField(max_length=255, verbose_name="URL API")
+    source_domain = models.CharField(max_length=255, verbose_name="Domain Sumber", blank=True, null=True,
+                                    help_text="Domain sumber untuk memformat URL gambar dan tautan")
     priority = models.IntegerField(default=0, verbose_name="Prioritas (semakin tinggi semakin diprioritaskan)")
     is_active = models.BooleanField(default=True, verbose_name="Aktif")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Dibuat pada")
@@ -426,7 +429,7 @@ class ScraperFactory:
 
 ## Implementasi Penanganan Perbedaan Data Antar API
 
-Salah satu tantangan utama dalam sistem fallback API adalah menangani perbedaan format data, terutama judul anime dan slug, dari berbagai sumber web scraping. Berikut adalah penjelasan tentang bagaimana KortekStream menangani perbedaan ini:
+Salah satu tantangan utama dalam sistem fallback API adalah menangani perbedaan format data, terutama judul anime, slug, dan domain sumber, dari berbagai sumber web scraping. Berikut adalah penjelasan tentang bagaimana KortekStream menangani perbedaan ini:
 
 ### Penanganan Perbedaan Judul Anime
 
@@ -444,6 +447,15 @@ Slug anime digunakan untuk URL dan identifikasi unik anime. Perbedaan slug antar
 2. **Validasi Slug**: Sebelum menggunakan slug untuk navigasi, sistem memvalidasi keberadaan dan format slug.
 3. **Fallback ke ID**: Jika slug tidak tersedia atau tidak valid, sistem dapat menggunakan ID numerik sebagai alternatif.
 4. **Conditional Rendering**: Template menggunakan pengecekan kondisional untuk menangani kasus di mana slug tidak tersedia.
+
+### Penanganan Perbedaan Domain Sumber
+
+Domain sumber digunakan untuk memformat URL gambar dan tautan ke sumber asli. Perbedaan domain sumber antar API dapat menyebabkan masalah dengan gambar dan tautan:
+
+1. **Domain Sumber per API**: Setiap API endpoint memiliki field `source_domain` yang menyimpan domain sumber untuk API tersebut.
+2. **Auto-switching Domain**: Ketika API endpoint berubah karena failover, domain sumber juga otomatis berubah.
+3. **Template Filter**: Filter `format_url` digunakan di template untuk memformat URL dengan domain sumber yang benar.
+4. **Fallback ke Default**: Jika domain sumber tidak tersedia di API endpoint, sistem menggunakan nilai default dari konfigurasi.
 
 ### Contoh Implementasi di Template
 
@@ -507,10 +519,31 @@ def get_current_api_info(self):
             return {
                 'name': endpoint.name,
                 'url': endpoint.url,
+                'source_domain': endpoint.source_domain,
                 'priority': endpoint.priority,
                 'is_active': endpoint.is_active
             }
     return None
+
+def get_current_source_domain(self):
+    """
+    Mendapatkan domain sumber dari API yang sedang digunakan.
+    """
+    if hasattr(self, 'current_source_domain') and self.current_source_domain:
+        return self.current_source_domain
+    
+    # Jika belum ada, coba dapatkan dari API yang sedang digunakan
+    if hasattr(self, 'current_api') and self.current_api:
+        endpoint = APIEndpoint.objects.filter(url=self.current_api).first()
+        if endpoint and endpoint.source_domain:
+            self.current_source_domain = endpoint.source_domain
+            return self.current_source_domain
+    
+    # Jika masih belum ada, gunakan default dari konfigurasi
+    from .models import SiteConfiguration
+    default_domain = SiteConfiguration.get_config('SOURCE_DOMAIN', 'v1.samehadaku.how')
+    self.current_source_domain = default_domain
+    return default_domain
 
 def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Any:
     """
@@ -602,6 +635,7 @@ Pastikan semua API endpoint mengembalikan data dengan format yang konsisten, ter
 - **Judul Anime**: Gunakan format yang konsisten (misalnya judul Jepang dengan terjemahan dalam kurung).
 - **Slug**: Pastikan slug selalu tersedia dan valid untuk navigasi.
 - **URL**: Gunakan format URL yang konsisten untuk gambar, episode, dll.
+- **Domain Sumber**: Pastikan setiap API endpoint memiliki domain sumber yang benar.
 - **Metadata**: Sertakan metadata yang konsisten seperti genre, status, skor, dll.
 
 ### 2. Penanganan Error yang Robust
@@ -669,6 +703,184 @@ Untuk menjalankan pemeriksaan status API setiap 15 menit:
 ```
 */15 * * * * cd /path/to/project && python manage.py check_api_status
 ```
+
+## Konfigurasi Sistem
+
+KortekStream menggunakan model `Konfigurasi Situs` untuk menyimpan konfigurasi global aplikasi. Model ini memungkinkan admin untuk mengubah konfigurasi melalui admin panel tanpa perlu mengubah kode atau me-restart server.
+
+### Model Konfigurasi Situs
+
+Model `Konfigurasi Situs` memiliki field berikut:
+
+| Field | Deskripsi |
+|-------|-----------|
+| Nama Konfigurasi | Nama deskriptif untuk konfigurasi |
+| Kunci Konfigurasi | Kunci unik untuk mengakses konfigurasi dalam kode |
+| Nilai Konfigurasi | Nilai dari konfigurasi |
+| Aktif | Status aktif konfigurasi |
+| Diperbarui pada | Waktu terakhir konfigurasi diperbarui |
+
+### Konfigurasi Penting
+
+| Nama | Kunci | Nilai Default | Deskripsi |
+|------|-------|---------------|-----------|
+| API Base URL | API_BASE_URL | http://localhost:8001/api/v1 | URL dasar untuk API backend FastAPI. Digunakan oleh frontend Django untuk berkomunikasi dengan backend API. Ini adalah URL dasar yang digunakan oleh `FallbackAPIClient` untuk membuat permintaan ke API. |
+| Domain Sumber Data | SOURCE_DOMAIN | v1.samehadaku.how | Domain sumber data anime yang digunakan oleh scraper untuk mengambil data. Ini digunakan untuk memformat URL gambar dan link ke sumber asli. |
+| Cache TTL | CACHE_TTL | 600 (10 menit) | Waktu hidup cache untuk data yang sering berubah. |
+| Cache Long TTL | CACHE_LONG_TTL | 3600 (1 jam) | Waktu hidup cache untuk data yang jarang berubah. |
+| Cache Very Long TTL | CACHE_VERY_LONG_TTL | 86400 (24 jam) | Waktu hidup cache untuk data yang sangat jarang berubah. |
+
+### Cara Mengakses Konfigurasi dalam Kode
+
+```python
+from streamapp.models import SiteConfiguration
+
+def get_config(key, default=None):
+    """
+    Mendapatkan nilai konfigurasi berdasarkan kunci.
+    """
+    config = SiteConfiguration.objects.filter(key=key, is_active=True).first()
+    if config:
+        return config.value
+    return default
+
+# Contoh penggunaan
+api_base_url = get_config('API_BASE_URL', 'http://localhost:8001/api/v1')
+source_domain = get_config('SOURCE_DOMAIN', 'v1.samehadaku.how')
+```
+
+### Cara Menambahkan API dari Sumber Lain
+
+Untuk menambahkan API dari sumber selain Samehadaku, Anda perlu:
+
+1. **Tambahkan API Endpoint Baru**:
+   - Buka admin panel Django di `/admin/`
+   - Navigasi ke "API Endpoints" di bagian "Streamapp"
+   - Klik "Add API Endpoint" untuk menambahkan API endpoint baru
+   - Isi form dengan informasi berikut:
+     - **Name**: Nama API endpoint (misalnya "API Otakudesu")
+     - **URL**: URL API endpoint (misalnya "https://api-otakudesu.example.com/api/v1")
+     - **Priority**: Prioritas API endpoint (semakin tinggi semakin diprioritaskan)
+     - **Is Active**: Centang jika API endpoint aktif
+
+2. **Implementasikan Scraper Baru**:
+   - Buat file scraper baru di `fastapi_app/app/scrapers/` (misalnya `otakudesu.py`)
+   - Implementasikan kelas scraper yang mewarisi `BaseScraper`
+   - Daftarkan scraper baru di `ScraperFactory` di `fastapi_app/app/scrapers/__init__.py`
+
+3. **Tambahkan Konfigurasi Sumber Baru**:
+   - Buka admin panel Django di `/admin/`
+   - Navigasi ke "Konfigurasi Situs" di bagian "Streamapp"
+   - Klik "Add Konfigurasi Situs" untuk menambahkan konfigurasi baru
+   - Tambahkan konfigurasi untuk domain sumber baru:
+     - **Nama Konfigurasi**: Domain Sumber Otakudesu
+     - **Kunci Konfigurasi**: SOURCE_DOMAIN_OTAKUDESU
+     - **Nilai Konfigurasi**: otakudesu.example.com
+     - **Aktif**: Centang jika konfigurasi aktif
+
+4. **Update Konfigurasi API di `settings.py`**:
+   ```python
+   # fastapi_app/app/core/config.py
+   ANIME_SOURCES: Dict[str, Dict[str, Any]] = {
+       "samehadaku": {
+           "base_url": os.getenv("SAMEHADAKU_BASE_URL", "https://v1.samehadaku.how"),
+           "search_url": os.getenv("SAMEHADAKU_SEARCH_URL", "https://samehadaku.now"),
+           "api_url": os.getenv("SAMEHADAKU_API_URL", "https://samehadaku.now/wp-json/custom/v1"),
+           "active": True,
+       },
+       "otakudesu": {
+           "base_url": os.getenv("OTAKUDESU_BASE_URL", "https://otakudesu.example.com"),
+           "search_url": os.getenv("OTAKUDESU_SEARCH_URL", "https://otakudesu.example.com/search"),
+           "api_url": os.getenv("OTAKUDESU_API_URL", "https://otakudesu.example.com/api"),
+           "active": True,
+       },
+   }
+   ```
+
+5. **Contoh Implementasi Scraper Baru**:
+   ```python
+   # fastapi_app/app/scrapers/otakudesu.py
+   from typing import Dict, List, Any, Optional
+   from app.scrapers.base import BaseScraper
+   import requests
+   from bs4 import BeautifulSoup
+   
+   class OtakudesuScraper(BaseScraper):
+       """
+       Scraper untuk Otakudesu.
+       """
+       def __init__(self, base_url: str, search_url: str = None, api_url: str = None):
+           super().__init__(base_url, search_url, api_url)
+       
+       def get_home_data(self) -> Dict[str, Any]:
+           """
+           Mendapatkan data untuk halaman utama.
+           """
+           # Implementasi scraping untuk halaman utama Otakudesu
+           # ...
+           
+       def get_anime_detail(self, anime_slug: str) -> Dict[str, Any]:
+           """
+           Mendapatkan detail anime berdasarkan slug.
+           """
+           # Implementasi scraping untuk detail anime Otakudesu
+           # ...
+           
+       # Implementasi method lainnya
+       # ...
+   ```
+
+6. **Daftarkan Scraper Baru di Factory**:
+   ```python
+   # fastapi_app/app/scrapers/__init__.py
+   from app.scrapers.base import BaseScraper
+   from app.scrapers.samehadaku import SamehadakuScraper
+   from app.scrapers.otakudesu import OtakudesuScraper
+   
+   class ScraperFactory:
+       _scrapers: Dict[str, BaseScraper] = {}
+       _scraper_classes: Dict[str, Type[BaseScraper]] = {
+           "samehadaku": SamehadakuScraper,
+           "otakudesu": OtakudesuScraper,  # Tambahkan scraper baru di sini
+       }
+       # ...
+   ```
+
+Dengan langkah-langkah di atas, sistem akan dapat menggunakan API dari sumber Otakudesu sebagai fallback jika API Samehadaku gagal. Sistem akan mencoba API berdasarkan prioritas yang telah ditentukan.
+
+### Pengecekan Status API Otomatis
+
+Sistem mendukung pengecekan status API otomatis melalui beberapa mekanisme:
+
+1. **Management Command**: Command `check_api_status` yang dapat dijalankan secara manual atau otomatis.
+   ```bash
+   python manage.py check_api_status
+   ```
+
+2. **Cron Job**: Anda dapat mengatur cron job untuk menjalankan command di atas secara berkala.
+   ```
+   */15 * * * * cd /path/to/project && python manage.py check_api_status
+   ```
+
+3. **Celery Task**: Jika menggunakan Celery, Anda dapat mengatur task berkala.
+   ```python
+   @app.task
+   def check_api_status_task():
+       from streamapp.tasks import check_api_status
+       check_api_status()
+   
+   # Jadwalkan task setiap 15 menit
+   app.conf.beat_schedule = {
+       'check-api-status-every-15-minutes': {
+           'task': 'your_app.tasks.check_api_status_task',
+           'schedule': 15 * 60,  # 15 menit
+       },
+   }
+   ```
+
+4. **Dashboard Manual Check**: Anda juga dapat memeriksa status API secara manual melalui dashboard.
+
+Hasil pengecekan status API akan disimpan di model `APIMonitor` dan dapat dilihat di dashboard monitoring API.
 
 ## Cara Menjalankan Aplikasi
 
