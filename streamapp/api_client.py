@@ -4,11 +4,25 @@ from typing import Any, Dict, List, Optional, Union
 import json
 import os
 from django.conf import settings
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-# Default API URL (can be overridden in settings.py)
-API_BASE_URL = getattr(settings, "API_BASE_URL", "http://localhost:8001/api/v1")
+def get_api_base_url():
+    """
+    Get API base URL from SiteConfiguration or settings.py.
+    """
+    # Import here to avoid circular import
+    from .models import SiteConfiguration
+    
+    # Try to get from SiteConfiguration
+    api_base_url = SiteConfiguration.get_config('API_BASE_URL')
+    
+    # If not found, get from settings.py
+    if not api_base_url:
+        api_base_url = getattr(settings, "API_BASE_URL", "http://localhost:8001/api/v1")
+    
+    return api_base_url
 
 
 class APIClient:
@@ -16,7 +30,7 @@ class APIClient:
     Client for interacting with the FastAPI backend.
     """
     def __init__(self, base_url: Optional[str] = None):
-        self.base_url = base_url or API_BASE_URL
+        self.base_url = base_url or get_api_base_url()
         self.session = requests.Session()
         self.session.headers.update({
             "User-Agent": "KortekStream Django Client",
@@ -233,18 +247,68 @@ def get_anime_detail(anime_slug: str) -> Dict[str, Any]:
     Returns:
         Anime details data
     """
+    # Coba ambil dari cache lokal terlebih dahulu
+    cache_key = f"local_anime_detail_{anime_slug}"
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        logger.info(f"Menggunakan data cache lokal untuk anime: {anime_slug}")
+        return cached_data
+    
     try:
         logger.info(f"Mengambil detail anime dengan slug: {anime_slug}")
         result = api_client.get("anime-detail", params={"anime_slug": anime_slug})
-        if not result:
+        
+        if result:
+            # Jika berhasil mendapatkan data, simpan ke cache lokal
+            logger.info(f"Berhasil mendapatkan data anime: {anime_slug}")
+            cache.set(cache_key, result, 60*60*24)  # Cache selama 24 jam
+            return result
+        else:
             logger.warning(f"API mengembalikan data kosong untuk anime: {anime_slug}")
-        return result
+            # Coba gunakan data cache lokal jika ada
+            stale_cache = cache.get(f"stale_local_anime_detail_{anime_slug}")
+            if stale_cache:
+                logger.info(f"Menggunakan data cache lokal lama untuk anime: {anime_slug}")
+                return stale_cache
+            
+            # Jika tidak ada data cache, coba gunakan data placeholder
+            logger.info(f"Data anime tidak ditemukan untuk slug: {anime_slug}")
+            return {
+                "error": True,
+                "message": f"Anime dengan slug '{anime_slug}' tidak ditemukan",
+                "title": f"Anime {anime_slug}",
+                "thumbnail_url": "/static/img/kortekstream-logo.png",
+                "url_cover": "/static/img/kortekstream-logo.png",
+                "sinopsis": "Data anime tidak ditemukan. Silakan coba lagi nanti atau kembali ke beranda.",
+                "genres": [],
+                "details": {"Status": "Unknown"},
+                "episode_list": []
+            }
     except Exception as e:
         logger.error(f"Error getting anime detail: {e}", exc_info=True)
         # Tambahkan informasi lebih detail untuk debugging
         import traceback
         logger.debug(f"Traceback: {traceback.format_exc()}")
-        return {}
+        
+        # Coba gunakan data cache lokal jika ada
+        stale_cache = cache.get(f"stale_local_anime_detail_{anime_slug}")
+        if stale_cache:
+            logger.info(f"Menggunakan data cache lokal lama untuk anime: {anime_slug}")
+            return stale_cache
+        
+        # Jika tidak ada data cache, gunakan data placeholder
+        logger.info(f"Data anime tidak ditemukan untuk slug: {anime_slug}")
+        return {
+            "error": True,
+            "message": f"Terjadi kesalahan saat memuat data anime: {str(e)}",
+            "title": f"Anime {anime_slug}",
+            "thumbnail_url": "/static/img/kortekstream-logo.png",
+            "url_cover": "/static/img/kortekstream-logo.png",
+            "sinopsis": "Terjadi kesalahan saat memuat data. Silakan coba lagi nanti atau kembali ke beranda.",
+            "genres": [],
+            "details": {"Status": "Unknown"},
+            "episode_list": []
+        }
 
 
 def get_episode_detail(episode_url: str) -> Dict[str, Any]:

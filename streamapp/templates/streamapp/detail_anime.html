@@ -1,6 +1,7 @@
 
 {% extends 'streamapp/base.html' %}
 {% load static %}
+{% load streamapp_filters %}
 {% block title %}{% if anime %}{{ anime.title }}{% else %}Detail Anime{% endif %} - KortekStream{% endblock %}
 
 {% block extra_head %}
@@ -81,6 +82,16 @@
         <div class="light-bg backdrop-blur-md border border-red-500/50 text-red-300 px-4 py-3 rounded-xl mb-8">
             <h2 class="text-xl font-bold">{{ error }}</h2>
             <p>Silakan coba lagi nanti atau kembali ke beranda.</p>
+        </div>
+    {% elif anime.error %}
+        <div class="light-bg backdrop-blur-md border border-red-500/50 text-red-300 px-4 py-3 rounded-xl mb-8">
+            <h2 class="text-xl font-bold">{{ anime.message }}</h2>
+            <p>{{ anime.sinopsis }}</p>
+            <p class="mt-4">
+                <a href="{% url 'streamapp:index' %}" class="bg-primary/80 hover:bg-primary text-white px-4 py-2 rounded-lg transition-colors">
+                    <i class="fas fa-home mr-2"></i> Kembali ke Beranda
+                </a>
+            </p>
         </div>
     {% elif anime %}
         <!-- Anime Header -->
@@ -180,7 +191,7 @@
             {% for episode in anime.episode_list %}
                 <li class="group  transition-all duration-200 hover:bg-black/10 dark:hover:bg-white/10">
                     {% if episode.url %}
-                        {% with episode_slug=episode.url|cut:"https://samehadaku.now/"|cut:"/" %}
+                        {% with episode_slug=episode.url|extract_episode_slug %}
                             <a href="{% url 'streamapp:detail_episode_video' episode_slug %}" class="flex justify-between items-center px-2 py-2 sm:py-3">
                                 <div class="overflow-hidden">
                                     <div class="font-medium light-text group-hover:text-primary transition-colors text-sm sm:text-base truncate">
@@ -236,7 +247,7 @@
                 <div id="recommendations-carousel" class="flex overflow-x-auto pb-4 space-x-3 sm:space-x-4 scrollbar-hide scroll-smooth">
                     {% for rec in anime.recommendations %}
                         <div class="anime-card dynamic-border group relative rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 flex-shrink-0 w-[160px] sm:w-[180px] md:w-[200px]">
-                            <a href="{% url 'streamapp:detail_anime' rec.url|cut:'https://samehadaku.now/anime/'|cut:'/' %}" class="block">
+                            <a href="{% url 'streamapp:detail_anime' rec.url|extract_anime_slug %}" class="block">
                                 <!-- Card Background with Blur Effect -->
                                 <div class="absolute inset-0 bg-black/20 backdrop-blur-md rounded-xl z-0"></div>
                                 

@@ -1,7 +1,22 @@
 from django.contrib import admin
-from .models import Advertisement
+from .models import Advertisement, SiteConfiguration
 
 # Register your models here.
+
+@admin.register(SiteConfiguration)
+class SiteConfigurationAdmin(admin.ModelAdmin):
+    list_display = ('name', 'key', 'value', 'is_active', 'updated_at')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'key', 'value')
+    list_editable = ('is_active',)
+    fieldsets = (
+        ('Informasi Konfigurasi', {
+            'fields': ('name', 'key', 'value', 'description')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+    )
 
 @admin.register(Advertisement)
 class AdvertisementAdmin(admin.ModelAdmin):

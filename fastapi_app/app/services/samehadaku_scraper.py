@@ -343,31 +343,54 @@ class SamehadakuScraper(BaseScraper):
             soup = self.get_soup(url)
             anime_list = []
             
-            # Cari semua artikel anime
-            articles = soup.select("div.post-show ul li article.animpost")
+            # Cari semua artikel anime dengan selector yang benar
+            articles = soup.select("div.post-show li")
+            
+            if not articles:
+                logger.warning(f"No anime found on page {page}")
+                return []
             
             for article in articles:
-                link_tag = article.select_one("a")
-                title_tag = article.select_one(".title h2")
-                episode_tag = article.select_one(".dtla span.epx")
-                date_tag = article.select_one(".dtla span.year")
-                img_tag = article.select_one("img")
+                title_tag = article.select_one("h2.entry-title a")
+                cover_tag = article.select_one("img.npws")
+                spans = article.select("div.dtla > span")
+                
+                if not title_tag:
+                    continue
+                
+                title = title_tag.text.strip()
+                anime_url = title_tag["href"] if title_tag else "N/A"
+                cover_url = cover_tag["src"] if cover_tag and cover_tag.has_attr("src") else "N/A"
+                
+                episode_tag = spans[0].find("author") if len(spans) > 0 else None
+                episode = episode_tag.text.strip() if episode_tag else "N/A"
+                
+                uploader_tag = spans[1].find("author") if len(spans) > 1 else None
+                uploader = uploader_tag.text.strip() if uploader_tag else "N/A"
+                
+                release_tag = spans[2] if len(spans) > 2 else None
+                release_time = release_tag.text.replace("Released on:", "").strip() if release_tag else "N/A"
                 
                 # Ekstrak anime_slug dari URL
                 anime_slug = None
-                url = link_tag.get('href') if link_tag else "N/A"
-                if url != "N/A":
-                    anime_match = re.search(r'anime/([^/]+)', url)
+                if anime_url != "N/A":
+                    anime_url_str = str(anime_url)
+                    anime_match = re.search(r'anime/([^/]+)', anime_url_str)
                     if anime_match:
                         anime_slug = anime_match.group(1)
+                    else:
+                        episode_match = re.search(r'([^/]+)-episode-\d+', anime_url_str)
+                        if episode_match:
+                            anime_slug = episode_match.group(1)
                 
                 anime_list.append({
-                    "judul": title_tag.text.strip() if title_tag else "N/A",
-                    "url": url,
+                    "judul": title,
+                    "url": anime_url,
                     "anime_slug": anime_slug,
-                    "episode": episode_tag.text.strip() if episode_tag else "N/A",
-                    "rilis": date_tag.text.strip() if date_tag else "N/A",
-                    "cover": img_tag.get('src') if img_tag else "N/A"
+                    "episode": episode,
+                    "uploader": uploader,
+                    "rilis": release_time,
+                    "cover": cover_url
                 })
             
             return anime_list
@@ -387,35 +410,53 @@ class SamehadakuScraper(BaseScraper):
             soup = self.get_soup(url)
             movie_list = []
             
-            # Cari semua artikel movie
-            articles = soup.select("div.post-show ul li article.animpost")
+            # Cari semua artikel movie dengan selector yang benar
+            articles = soup.find_all("article", class_="animpost")
+            
+            if not articles:
+                logger.warning(f"No movies found on page {page}")
+                return []
             
             for article in articles:
-                link_tag = article.select_one("a")
-                title_tag = article.select_one(".title h2")
-                date_tag = article.select_one(".dtla span.year")
-                img_tag = article.select_one("img")
+                main_link_tag = article.find("a")
+                url_movie = main_link_tag["href"] if main_link_tag else "N/A"
+                title_tag = article.find("h2", class_="entry-title")
+                title = title_tag.text.strip() if title_tag else "N/A"
+                cover_tag = article.find("img")
+                cover = cover_tag.get("src") if cover_tag else "N/A"
+                status_tag = article.select_one("div.data .type")
+                status = status_tag.text.strip() if status_tag else "N/A"
+                score_tag = article.select_one("span.skor")
+                score = score_tag.text.strip() if score_tag else "N/A"
+                synopsis_tag = article.select_one("div.ttls")
+                synopsis = synopsis_tag.text.strip() if synopsis_tag else "N/A"
                 
-                # Ekstrak genre
-                genres = []
-                genre_tags = article.select(".dtla span.genre a")
-                for tag in genre_tags:
-                    genres.append(tag.text.strip())
+                views = "N/A"
+                metadata_spans = article.select("div.metadata span")
+                for span in metadata_spans:
+                    if "Views" in span.text:
+                        views = span.text.strip()
+                        break
+                
+                genre_tags = article.select("div.genres a")
+                genres = [g.text.strip() for g in genre_tags] if genre_tags else []
                 
                 # Ekstrak anime_slug dari URL
                 anime_slug = None
-                url = link_tag.get('href') if link_tag else "N/A"
-                if url != "N/A":
-                    anime_match = re.search(r'anime/([^/]+)', url)
+                if url_movie != "N/A":
+                    anime_match = re.search(r'anime/([^/]+)', url_movie)
                     if anime_match:
                         anime_slug = anime_match.group(1)
                 
                 movie_list.append({
-                    "judul": title_tag.text.strip() if title_tag else "N/A",
-                    "url": url,
+                    "judul": title,
+                    "url": url_movie,
                     "anime_slug": anime_slug,
-                    "tanggal": date_tag.text.strip() if date_tag else "N/A",
-                    "cover": img_tag.get('src') if img_tag else "N/A",
+                    "status": status,
+                    "skor": score,
+                    "sinopsis": synopsis,
+                    "views": views,
+                    "cover": cover,
                     "genres": genres
                 })
             

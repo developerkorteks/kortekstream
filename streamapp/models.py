@@ -1,6 +1,83 @@
 from django.db import models
+from django.core.cache import cache
 
 # Create your models here.
+
+class SiteConfiguration(models.Model):
+    """
+    Model untuk menyimpan konfigurasi situs.
+    """
+    name = models.CharField(max_length=100, verbose_name="Nama Konfigurasi")
+    key = models.CharField(max_length=100, unique=True, verbose_name="Kunci Konfigurasi")
+    value = models.TextField(verbose_name="Nilai Konfigurasi")
+    description = models.TextField(blank=True, null=True, verbose_name="Deskripsi")
+    is_active = models.BooleanField(default=True, verbose_name="Aktif")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Dibuat pada")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Diperbarui pada")
+    
+    class Meta:
+        verbose_name = "Konfigurasi Situs"
+        verbose_name_plural = "Konfigurasi Situs"
+        ordering = ['key']
+    
+    def __str__(self):
+        return f"{self.name} ({self.key})"
+    
+    def save(self, *args, **kwargs):
+        """
+        Override save method untuk menghapus cache saat konfigurasi diubah.
+        """
+        super().save(*args, **kwargs)
+        # Hapus cache untuk konfigurasi ini
+        cache.delete(f"site_config_{self.key}")
+        # Hapus cache untuk template filter
+        cache.delete(f"template_tag_site_config_{self.key}")
+        # Hapus cache untuk template filter source domain
+        if self.key == 'SOURCE_DOMAIN':
+            cache.delete("template_filter_source_domain")
+        # Hapus cache untuk semua konfigurasi
+        cache.delete("all_site_configs")
+    
+    @classmethod
+    def get_config(cls, key, default=None):
+        """
+        Mendapatkan nilai konfigurasi berdasarkan key.
+        Menggunakan cache untuk meningkatkan performa.
+        """
+        # Coba ambil dari cache terlebih dahulu
+        cache_key = f"site_config_{key}"
+        cached_value = cache.get(cache_key)
+        if cached_value is not None:
+            return cached_value
+        
+        # Jika tidak ada di cache, ambil dari database
+        try:
+            config = cls.objects.get(key=key, is_active=True)
+            # Simpan ke cache
+            cache.set(cache_key, config.value, 3600)  # Cache selama 1 jam
+            return config.value
+        except cls.DoesNotExist:
+            # Jika tidak ada di database, kembalikan nilai default
+            return default
+    
+    @classmethod
+    def get_all_configs(cls):
+        """
+        Mendapatkan semua konfigurasi aktif.
+        Menggunakan cache untuk meningkatkan performa.
+        """
+        # Coba ambil dari cache terlebih dahulu
+        cache_key = "all_site_configs"
+        cached_configs = cache.get(cache_key)
+        if cached_configs is not None:
+            return cached_configs
+        
+        # Jika tidak ada di cache, ambil dari database
+        configs = {config.key: config.value for config in cls.objects.filter(is_active=True)}
+        # Simpan ke cache
+        cache.set(cache_key, configs, 3600)  # Cache selama 1 jam
+        return configs
+
 
 class Advertisement(models.Model):
     """
