@@ -142,6 +142,6 @@ if __name__ == '__main__':
             }
         )
     # Menjalankan fungsi utama untuk demonstrasi
-    # import json
-    # latest_anime = scrape_anime_terbaru(get_better_covers=False) # Dimatikan agar tidak memanggil detail_anime
-    # print(json.dumps(latest_anime, indent=4, ensure_ascii=False))
+    import json
+    latest_anime = scrape_anime_terbaru(get_better_covers=False) # Dimatikan agar tidak memanggil detail_anime
+    print(json.dumps(latest_anime, indent=4, ensure_ascii=False))
