@@ -19,6 +19,7 @@ from .api_client import (
     get_episode_detail,
     search_anime,
     get_home_data,
+    get_current_api_info,
 )
 
 logger = logging.getLogger(__name__)
@@ -845,3 +846,65 @@ async def user_collection(request):
     except Exception as e:
         print(f"Error saat menampilkan koleksi pengguna: {e}")
         return HttpResponse("Terjadi kesalahan saat memuat halaman koleksi pengguna", status=500)
+
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.utils.decorators import method_decorator
+from django.views.generic import TemplateView
+from .tasks import get_api_status_summary, check_api_status
+from .models import APIEndpoint, APIMonitor
+import json
+
+@method_decorator(staff_member_required, name='dispatch')
+class APIMonitorDashboardView(TemplateView):
+    """
+    View untuk menampilkan dashboard monitoring API.
+    Hanya dapat diakses oleh staff/admin.
+    """
+    template_name = 'streamapp/api_monitor_dashboard.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Ambil ringkasan status API
+        api_status = get_api_status_summary()
+        
+        # Ambil informasi tentang API yang sedang digunakan
+        current_api_info = get_current_api_info()
+        
+        # Tambahkan data ke context
+        context['api_status'] = api_status
+        context['current_api'] = current_api_info
+        context['endpoints'] = APIEndpoint.objects.filter(is_active=True).order_by('-priority')
+        context['monitors'] = APIMonitor.objects.all().order_by('-last_checked')[:50]  # Ambil 50 monitor terbaru
+        
+        # Hitung persentase status
+        total_monitors = sum(api_status['status_counts'].values())
+        if total_monitors > 0:
+            context['status_percentages'] = {
+                status: round((count / total_monitors) * 100, 1)
+                for status, count in api_status['status_counts'].items()
+            }
+        else:
+            context['status_percentages'] = {status: 0 for status in api_status['status_counts']}
+        
+        return context
+    
+    def post(self, request, *args, **kwargs):
+        """
+        Handle POST request untuk menjalankan pemeriksaan API secara manual.
+        """
+        action = request.POST.get('action')
+        
+        if action == 'check_api':
+            try:
+                # Jalankan pemeriksaan API
+                check_api_status()
+                return HttpResponse(json.dumps({'status': 'success', 'message': 'Pemeriksaan API berhasil dijalankan'}),
+                                   content_type='application/json')
+            except Exception as e:
+                return HttpResponse(json.dumps({'status': 'error', 'message': f'Error: {str(e)}'}),
+                                   content_type='application/json', status=500)
+        
+        return HttpResponse(json.dumps({'status': 'error', 'message': 'Action tidak valid'}),
+                           content_type='application/json', status=400)

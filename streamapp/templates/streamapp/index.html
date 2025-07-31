@@ -69,10 +69,16 @@
                             
                             <!-- Buttons -->
                             <div class="flex space-x-4">
+                                {% if anime.anime_slug %}
                                 <a href="{% url 'streamapp:detail_anime' anime.anime_slug %}" class="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">
                                     <i class="fas fa-play mr-2"></i>Tonton Sekarang
                                 </a>
-                                <button onclick="addToWatchlist({{ anime.id|default:'null' }}, '{{ anime.judul|escapejs }}', '{{ anime.anime_slug|escapejs }}', '{{ anime.cover|escapejs }}')" class="px-6 py-3 bg-transparent border border-primary/50 text-black dark:border-white/30 dark:text-white font-medium rounded-lg hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">
+                                {% else %}
+                                <button class="px-8 py-3 bg-gray-500 text-white font-medium rounded-lg cursor-not-allowed">
+                                    <i class="fas fa-play mr-2"></i>Tonton Sekarang
+                                </button>
+                                {% endif %}
+                                <button onclick="addToWatchlist({{ anime.id|default:'null' }}, '{{ anime.judul|escapejs }}', '{{ anime.anime_slug|default:''|escapejs }}', '{{ anime.cover|escapejs }}')" class="px-6 py-3 bg-transparent border border-primary/50 text-black dark:border-white/30 dark:text-white font-medium rounded-lg hover:bg-primary/20 dark:hover:bg-white/20 transition-colors">
                                     <i class="fas fa-bookmark mr-2"></i>Tambah ke Watchlist
                                 </button>
                             </div>
@@ -125,7 +131,7 @@
                 <div id="top-anime-carousel" class="flex overflow-x-auto pb-4 space-x-3 sm:space-x-4 scrollbar-hide scroll-smooth">
                     {% for anime in anime_mingguan %}
                         <div class="group anime-card flex-shrink-0 w-[130px] sm:w-[150px] md:w-[180px] light-bg backdrop-blur-md rounded-lg overflow-hidden light-border hover:bg-primary/10 dark:hover:bg-black/60 transition-all duration-300">
-                            <a href="{% if anime.anime_slug %}{% url 'streamapp:detail_anime' anime.anime_slug %}{% else %}{% url 'streamapp:detail_anime' anime.url|cut:'https://v1.samehadaku.how/anime/'|cut:'/' %}{% endif %}" class="block">
+                            <a href="{% if anime.anime_slug %}{% url 'streamapp:detail_anime' anime.anime_slug %}{% elif anime.url and 'anime/' in anime.url %}{% url 'streamapp:detail_anime' anime.url|cut:'https://v1.samehadaku.how/anime/'|cut:'/' %}{% else %}#{% endif %}" class="block">
                                 <div class="relative">
                                     <img src="{{ anime.cover }}" alt="{{ anime.judul }}" class="w-full h-28 sm:h-32 md:h-40 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="180" height="240">
                                     <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -204,7 +210,7 @@
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
             {% for anime in anime_terbaru %}
                 <div class="group anime-card light-bg backdrop-blur-md rounded-lg overflow-hidden light-border hover:bg-primary/10 dark:hover:bg-white/20 transition-all duration-300">
-                    <a href="{% url 'streamapp:detail_anime' anime.url|cut:'https://v1.samehadaku.how/anime/'|cut:'/' %}" class="block">
+                    <a href="{% if anime.anime_slug %}{% url 'streamapp:detail_anime' anime.anime_slug %}{% elif anime.url and 'anime/' in anime.url %}{% url 'streamapp:detail_anime' anime.url|cut:'https://v1.samehadaku.how/anime/'|cut:'/' %}{% else %}#{% endif %}" class="block">
                         <div class="relative">
                             <img src="{{ anime.cover }}" alt="{{ anime.judul }}" class="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="160" height="128">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -253,7 +259,7 @@
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
             {% for item in movie %}
                 <div class="group anime-card light-bg backdrop-blur-md rounded-lg overflow-hidden light-border hover:bg-primary/10 dark:hover:bg-white/20 transition-all duration-300">
-                    <a href="{% url 'streamapp:detail_anime' item.url|cut:'https://v1.samehadaku.how/anime/'|cut:'/' %}" class="block">
+                    <a href="{% if item.anime_slug %}{% url 'streamapp:detail_anime' item.anime_slug %}{% elif item.url and 'anime/' in item.url %}{% url 'streamapp:detail_anime' item.url|cut:'https://v1.samehadaku.how/anime/'|cut:'/' %}{% else %}#{% endif %}" class="block">
                         <div class="relative">
                             <img src="{{ item.cover }}" alt="{{ item.judul }}" class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="160" height="192">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>

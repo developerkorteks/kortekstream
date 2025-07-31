@@ -1,5 +1,10 @@
 from django.urls import path
-from .views import index, detail_anime, all_list_anime_terbaru, all_list_jadwal_rilis, all_list_movie, detail_episode_video, search, user_collection
+from .views import (
+    index, detail_anime, all_list_anime_terbaru, all_list_jadwal_rilis,
+    all_list_movie, detail_episode_video, search, user_collection,
+    APIMonitorDashboardView
+)
+
 app_name = 'streamapp'
 urlpatterns = [
     path('', index, name='index'),
@@ -9,5 +14,8 @@ urlpatterns = [
     path('movie/', all_list_movie, name='all_list_movie'),
     path('episode/<path:episode_slug>/', detail_episode_video, name='detail_episode_video'),
     path('search/', search, name='search'),
-    path('koleksi/', user_collection, name='user_collection')
+    path('koleksi/', user_collection, name='user_collection'),
+    
+    # Dashboard monitoring API (hanya untuk staff/admin)
+    path('api-monitor/', APIMonitorDashboardView.as_view(), name='api_monitor_dashboard'),
 ]
