@@ -50,24 +50,77 @@ def async_cache(ttl=60*15, prefix='view_cache_'):
     return decorator
 
 # Fungsi untuk mendapatkan data anime terbaru dengan caching
-@async_cache(ttl=60*10, prefix='anime_terbaru_')
 async def get_anime_terbaru_data(page=1):
     """
     Fungsi untuk mendapatkan data anime terbaru dengan caching.
     """
-    return await asyncio.to_thread(get_anime_terbaru, page)
+    result = await asyncio.to_thread(get_anime_terbaru, page)
+    
+    # Jika hasil None atau empty list, kembalikan list kosong
+    if not result:
+        logger.warning(f"Hasil anime terbaru kosong untuk halaman {page}")
+        return []
+    
+    # Periksa apakah hasil memiliki struktur baru dengan confidence score
+    if isinstance(result, dict) and 'confidence_score' in result and 'data' in result:
+        confidence = result.get('confidence_score', 0)
+        logger.info(f"Mendapatkan data anime terbaru dengan confidence score: {confidence}")
+        
+        # Periksa apakah data kosong
+        if not result.get('data'):
+            logger.warning(f"Data anime terbaru kosong meskipun API merespons dengan confidence score: {confidence}")
+            return []
+            
+        return result['data']
+    
+    # Jika tidak, kembalikan hasil langsung (kompatibilitas dengan struktur lama)
+    # Pastikan hasil adalah list
+    if not isinstance(result, list):
+        logger.warning(f"Hasil anime terbaru bukan list: {type(result)}")
+        if isinstance(result, dict):
+            # Coba ekstrak data jika ada
+            return result.get('data', []) if result.get('data') else []
+        return []
+        
+    return result
 
 # Fungsi untuk mendapatkan data movie dengan caching
-@async_cache(ttl=60*30, prefix='movie_')
 async def get_movie_data(page=1):
     """
     Fungsi untuk mendapatkan data movie dengan caching.
     """
-    return await asyncio.to_thread(get_movie_list, page)
+    result = await asyncio.to_thread(get_movie_list, page)
+    
+    # Jika hasil None atau empty list, kembalikan list kosong
+    if not result:
+        logger.warning(f"Hasil movie kosong untuk halaman {page}")
+        return []
+    
+    # Periksa apakah hasil memiliki struktur baru dengan confidence score
+    if isinstance(result, dict) and 'confidence_score' in result and 'data' in result:
+        confidence = result.get('confidence_score', 0)
+        logger.info(f"Mendapatkan data movie dengan confidence score: {confidence}")
+        
+        # Periksa apakah data kosong
+        if not result.get('data'):
+            logger.warning(f"Data movie kosong meskipun API merespons dengan confidence score: {confidence}")
+            return []
+            
+        return result['data']
+    
+    # Jika tidak, kembalikan hasil langsung (kompatibilitas dengan struktur lama)
+    # Pastikan hasil adalah list
+    if not isinstance(result, list):
+        logger.warning(f"Hasil movie bukan list: {type(result)}")
+        if isinstance(result, dict):
+            # Coba ekstrak data jika ada
+            return result.get('data', []) if result.get('data') else []
+        return []
+        
+    return result
 
 
 # Fungsi untuk mendapatkan data anime mingguan dengan caching
-@async_cache(ttl=60*60, prefix='anime_mingguan_')
 async def get_anime_mingguan_data():
     """
     Fungsi untuk mendapatkan data anime mingguan dengan caching.
@@ -75,8 +128,32 @@ async def get_anime_mingguan_data():
     try:
         # Coba ambil dari get_home_data terlebih dahulu
         home_data = await asyncio.to_thread(get_home_data)
-        if home_data and "top10" in home_data and home_data["top10"]:
-            logger.info("Berhasil mendapatkan data anime mingguan dari get_home_data")
+        
+        # Jika hasil None atau empty dict, lanjutkan ke fallback
+        if not home_data:
+            logger.warning("Data home kosong, mencoba API fallback")
+            raise Exception("Data home kosong")
+        
+        # Periksa apakah hasil memiliki struktur baru dengan confidence score
+        if isinstance(home_data, dict) and 'confidence_score' in home_data and 'data' in home_data:
+            confidence = home_data.get('confidence_score', 0)
+            logger.info(f"Mendapatkan data home dengan confidence score: {confidence}")
+            
+            # Periksa apakah data kosong
+            if not home_data.get('data'):
+                logger.warning(f"Data home kosong meskipun API merespons dengan confidence score: {confidence}")
+                raise Exception("Data home kosong meskipun API merespons")
+                
+            home_data = home_data['data']
+        
+        # Periksa apakah home_data adalah dictionary
+        if not isinstance(home_data, dict):
+            logger.warning(f"Data home bukan dictionary: {type(home_data)}")
+            raise Exception(f"Data home bukan dictionary: {type(home_data)}")
+        
+        # Periksa apakah top10 ada dan tidak kosong
+        if "top10" in home_data and home_data["top10"]:
+            logger.info(f"Berhasil mendapatkan data anime mingguan dari get_home_data: {len(home_data['top10'])} item")
             return home_data.get("top10", [])
         else:
             logger.warning("Data anime mingguan kosong dari get_home_data, mencoba API fallback")
@@ -85,7 +162,7 @@ async def get_anime_mingguan_data():
             # jadi kita gunakan data anime terbaru sebagai fallback
             anime_terbaru = await get_anime_terbaru_data()
             if anime_terbaru:
-                logger.info("Menggunakan data anime terbaru sebagai fallback untuk anime mingguan")
+                logger.info(f"Menggunakan data anime terbaru sebagai fallback untuk anime mingguan: {len(anime_terbaru)} item")
                 return anime_terbaru[:10]  # Ambil 10 anime terbaru sebagai fallback
             else:
                 logger.warning("Gagal mendapatkan data anime mingguan dari semua sumber")
@@ -96,7 +173,7 @@ async def get_anime_mingguan_data():
         try:
             anime_terbaru = await get_anime_terbaru_data()
             if anime_terbaru:
-                logger.info("Menggunakan data anime terbaru sebagai fallback untuk anime mingguan")
+                logger.info(f"Menggunakan data anime terbaru sebagai fallback untuk anime mingguan: {len(anime_terbaru)} item")
                 return anime_terbaru[:10]  # Ambil 10 anime terbaru sebagai fallback
         except Exception as e2:
             logger.error(f"Error saat mendapatkan data anime terbaru sebagai fallback: {e2}")
@@ -163,105 +240,97 @@ async def _fetch_individual_sections(context):
         logger.warning("Gagal mendapatkan data dari semua API")
         context['error'] = "Terjadi kesalahan saat memuat data. Silakan coba lagi nanti."
 
+def _transform_anime_detail_data(raw_data: dict, anime_slug: str) -> dict:
+    """
+    Transforms raw API data into the structure expected by the template.
+    """
+    if not raw_data or not isinstance(raw_data, dict):
+        return {
+            "error": True,
+            "message": f"Data anime tidak valid atau kosong untuk slug: {anime_slug}",
+            "title": f"Anime {anime_slug}",
+            "thumbnail_url": "/static/img/kortekstream-logo.png",
+            "url_cover": "/static/img/kortekstream-logo.png",
+            "sinopsis": "Data anime tidak ditemukan.",
+            "genres": [],
+            "details": {},
+            "episode_list": []
+        }
+
+    return {
+        "title": raw_data.get('judul', f"Anime {anime_slug}"),
+        "thumbnail_url": raw_data.get('url_cover') or raw_data.get('cover', "/static/img/kortekstream-logo.png"),
+        "url_cover": raw_data.get('url_cover', "/static/img/kortekstream-logo.png"),
+        "sinopsis": raw_data.get('sinopsis', "Sinopsis tidak tersedia."),
+        "genres": raw_data.get('genre', []) or raw_data.get('genres', []),
+        "details": raw_data.get('details', {}),
+        "episode_list": raw_data.get('episode_list', []),
+        "recommendations": raw_data.get('recommendations', []),
+        "error": raw_data.get('error', False),
+        "message": raw_data.get('message', '')
+    }
+
 # Fungsi untuk mendapatkan detail anime dengan caching
-@async_cache(ttl=60*60*24, prefix='anime_detail_')  # Cache selama 24 jam
 async def get_anime_detail_data(anime_slug):
     """
     Fungsi untuk mendapatkan detail anime dengan caching.
     """
-    # Buat cache key yang unik untuk setiap anime_slug
-    cache_key = f"anime_detail_{anime_slug}"
-    stale_cache_key = f"stale_anime_detail_{anime_slug}"
-    
-    # Cek cache terlebih dahulu
-    cached_data = await cache.aget(cache_key)
-    if cached_data:
-        logger.info(f"Menggunakan data cache untuk anime: {anime_slug}")
-        return cached_data
-    
-    # Jika tidak ada di cache, ambil data baru menggunakan API client
     logger.info(f"Mengambil detail anime: {anime_slug}")
     
     try:
-        # Gunakan sync_to_async untuk menjalankan get_anime_detail dalam thread terpisah
-        # Ini mencegah error "You cannot call this from an async context"
         get_anime_detail_async = sync_to_async(get_anime_detail)
-        result = await get_anime_detail_async(anime_slug)
+        raw_result = await get_anime_detail_async(anime_slug)
         
-        if result:
-            logger.info(f"Berhasil mendapatkan data anime: {anime_slug}")
-            # Simpan hasil ke cache
-            await cache.aset(cache_key, result, 60*60*24)  # Cache selama 24 jam
-            # Simpan juga sebagai cache lama untuk fallback
-            await cache.aset(stale_cache_key, result, 60*60*24*7)  # Cache selama 7 hari
-            return result
+        # Transform the data to the expected structure
+        transformed_result = _transform_anime_detail_data(raw_result, anime_slug)
+        
+        if not transformed_result.get('error'):
+            logger.info(f"Berhasil mendapatkan dan mentransformasi data anime: {anime_slug}")
+            # Cache the transformed result
+            await cache.aset(f"anime_detail_{anime_slug}", transformed_result, 60*60*24)
+            return transformed_result
         else:
-            logger.warning(f"API mengembalikan data kosong untuk anime: {anime_slug}")
-            # Cek apakah ada data cache lama yang bisa digunakan
-            stale_cache = await cache.aget(stale_cache_key)
-            if stale_cache:
-                logger.info(f"Menggunakan data cache lama untuk anime: {anime_slug}")
-                return stale_cache
-            
-            # Jika tidak ada cache lama, kembalikan objek dengan flag error
-            logger.warning(f"Data anime tidak ditemukan untuk slug: {anime_slug}")
-            return {
-                "error": True,
-                "message": f"Anime dengan slug '{anime_slug}' tidak ditemukan",
-                "title": f"Anime {anime_slug}",
-                "thumbnail_url": "/static/images/placeholder.jpg",
-                "url_cover": "/static/images/placeholder.jpg",
-                "sinopsis": "Data anime tidak ditemukan. Silakan coba lagi nanti atau kembali ke beranda.",
-                "genres": [],
-                "details": {"Status": "Unknown"},
-                "episode_list": []
-            }
+            logger.warning(f"Gagal mendapatkan data valid untuk anime: {anime_slug}. Pesan: {transformed_result.get('message')}")
+            return transformed_result
+
     except Exception as e:
         logger.error(f"Error saat mengambil detail anime {anime_slug}: {e}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        
-        # Coba gunakan cache lama jika ada error
-        stale_cache = await cache.aget(stale_cache_key)
-        if stale_cache:
-            logger.info(f"Menggunakan data cache lama untuk anime: {anime_slug}")
-            return stale_cache
-        
-        # Jika tidak ada cache lama, kembalikan objek dengan flag error
-        return {
-            "error": True,
-            "message": f"Terjadi kesalahan saat memuat data anime: {str(e)}",
-            "title": f"Anime {anime_slug}",
-            "thumbnail_url": "/static/images/placeholder.jpg",
-            "url_cover": "/static/images/placeholder.jpg",
-            "sinopsis": "Terjadi kesalahan saat memuat data. Silakan coba lagi nanti atau kembali ke beranda.",
-            "genres": [],
-            "details": {"Status": "Unknown"},
-            "episode_list": []
-        }
+        return _transform_anime_detail_data({}, anime_slug) # Return a default error structure
 
 # Create your views here.
 async def index(request):
     """
     View untuk halaman utama.
     """
-    # Cek cache untuk seluruh halaman dengan versioning
-    cache_version = int(time.time() / (60 * 15))  # Versi berubah setiap 15 menit
-    cached_data = await cache.aget(f'home_page_data_v{cache_version}')
-    
-    # Jika tidak ada di cache versi terbaru, coba cek cache standar
-    if not cached_data:
-        cached_data = await cache.aget('home_page_data')
-    
-    if cached_data:
-        logger.info("Menggunakan data cache untuk halaman utama")
-        return render(request, 'streamapp/index.html', context=cached_data)
-    
-    # Ambil data dari API
+    response = None
     try:
-        # Ambil data home secara asinkron
+        # Ambil data dari API
         logger.info("Mengambil data home dari API")
         home_data = await asyncio.to_thread(get_home_data)
+        
+        # Jika hasil None atau empty dict, lanjutkan ke fallback
+        if not home_data:
+            logger.warning("Data home kosong, mencoba fallback")
+            raise Exception("Data home kosong")
+        
+        # Periksa apakah hasil memiliki struktur baru dengan confidence score
+        if isinstance(home_data, dict) and 'confidence_score' in home_data and 'data' in home_data:
+            confidence = home_data.get('confidence_score', 0)
+            logger.info(f"Mendapatkan data home dengan confidence score: {confidence}")
+            
+            # Periksa apakah data kosong
+            if not home_data.get('data'):
+                logger.warning(f"Data home kosong meskipun API merespons dengan confidence score: {confidence}")
+                raise Exception("Data home kosong meskipun API merespons")
+                
+            home_data = home_data['data']
+        
+        # Periksa apakah home_data adalah dictionary
+        if not isinstance(home_data, dict):
+            logger.warning(f"Data home bukan dictionary: {type(home_data)}")
+            raise Exception(f"Data home bukan dictionary: {type(home_data)}")
         
         # Buat context untuk template
         context = {
@@ -272,131 +341,83 @@ async def index(request):
             'days_of_week': ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         }
         
+        # Log jumlah item yang diterima untuk debugging
+        logger.info(f"Data diterima - Anime Terbaru: {len(context['anime_terbaru'])}, " +
+                   f"Movie: {len(context['movie'])}, " +
+                   f"Anime Mingguan: {len(context['anime_mingguan'])}, " +
+                   f"Jadwal Rilis: {len(context['jadwal_rilis'].keys()) if isinstance(context['jadwal_rilis'], dict) else 0}")
+        
         # Periksa apakah data yang diterima valid
         if not context['anime_terbaru'] and not context['movie'] and not context['anime_mingguan']:
             logger.warning("API mengembalikan data kosong untuk semua bagian")
-            # Coba gunakan cache lama jika data kosong
-            stale_cache = await cache.aget('stale_home_page_data')
-            if stale_cache:
-                logger.info("Menggunakan data cache lama untuk halaman utama")
-                return render(request, 'streamapp/index.html', context=stale_cache)
-            else:
-                # Jika tidak ada cache lama, coba ambil data untuk setiap bagian secara terpisah
-                logger.info("Mencoba mengambil data untuk setiap bagian secara terpisah")
-                await _fetch_individual_sections(context)
+            await _fetch_individual_sections(context)
+
+        response = render(request, 'streamapp/index.html', context=context)
+
     except Exception as e:
         logger.error(f"Error saat mengambil data home: {e}")
-        # Coba gunakan cache lama jika terjadi error
-        stale_cache = await cache.aget('stale_home_page_data')
-        if stale_cache:
-            logger.info("Menggunakan data cache lama untuk halaman utama")
-            return render(request, 'streamapp/index.html', context=stale_cache)
-        else:
-            # Jika tidak ada cache lama, coba ambil data untuk setiap bagian secara terpisah
-            logger.info("Mencoba mengambil data untuk setiap bagian secara terpisah")
-            context = {
-                'anime_terbaru': [],
-                'movie': [],
-                'anime_mingguan': [],
-                'jadwal_rilis': {},
-                'days_of_week': ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-            }
-            await _fetch_individual_sections(context)
+        context = {
+            'anime_terbaru': [],
+            'movie': [],
+            'anime_mingguan': [],
+            'jadwal_rilis': {},
+            'days_of_week': ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+            'error': "Terjadi kesalahan saat memuat data. Silakan coba lagi nanti."
+        }
+        await _fetch_individual_sections(context)
+        response = render(request, 'streamapp/index.html', context=context)
     
-    # Cache hasil untuk 15 menit
-    # Gunakan versioning untuk memudahkan invalidasi cache
-    cache_version = int(time.time() / (60 * 15))  # Versi berubah setiap 15 menit
-    await cache.aset(f'home_page_data_v{cache_version}', context, 60 * 15)
-    
-    # Simpan juga dengan kunci standar untuk kompatibilitas
-    await cache.aset('home_page_data', context, 60 * 15)
-    
-    # Simpan sebagai cache lama untuk fallback
-    await cache.aset('stale_home_page_data', context, 60 * 60 * 24 * 7)  # Simpan selama 7 hari
-    
-    return render(request, 'streamapp/index.html', context=context)
+    # Set Cache-Control header to prevent browser caching
+    if response:
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+
+    return response
 
 async def detail_anime(request, anime_slug=None):
     """
     View untuk menampilkan detail anime.
     """
+    response = None
     # Jika tidak ada anime_slug, kembalikan halaman kosong
     if not anime_slug:
-        return render(request, 'streamapp/detail_anime.html', {})
+        response = render(request, 'streamapp/detail_anime.html', {})
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        return response
     
     # Tambahkan logging untuk debug
     logger.info(f"Menerima request untuk anime_slug: {anime_slug}")
     
     try:
-        # Periksa apakah anime_slug berisi URL yang tidak valid
-        if ':' in anime_slug:
-            # Jika anime_slug berisi karakter ':' (seperti https:v1.samehadaku.how...)
-            # Ini menandakan URL yang tidak valid, coba perbaiki
-            logger.warning(f"Mendeteksi URL tidak valid dengan ':': {anime_slug}")
-            
-            # Coba ekstrak bagian yang valid
-            if 'v1.samehadaku.how' in anime_slug:
-                # Jika berisi domain v1.samehadaku.how, ekstrak slug anime yang sebenarnya
-                parts = anime_slug.split('how')
-                if len(parts) > 1:
-                    # Ambil bagian terakhir dari URL (slug anime)
-                    anime_slug = parts[1].strip('/').split('/')[-1]
-                    logger.info(f"Slug anime diperbaiki menjadi: {anime_slug}")
-            else:
-                # Jika format tidak dikenali, coba ekstrak bagian terakhir
-                anime_slug = anime_slug.split('/')[-1]
-                logger.info(f"Slug anime dibersihkan menjadi: {anime_slug}")
-        
-        # Dapatkan detail anime dengan caching
+        # Dapatkan detail anime
         anime_data = await get_anime_detail_data(anime_slug)
         
         # Jika data tidak ditemukan atau memiliki flag error, tampilkan pesan error
-        if not anime_data:
-            logger.warning(f"Data anime tidak ditemukan untuk slug: {anime_slug}")
-            return render(request, 'streamapp/detail_anime.html', {'error': 'Anime tidak ditemukan'})
-        
-        # Periksa apakah data memiliki flag error
-        if anime_data.get('error', False):
-            logger.warning(f"Data anime memiliki flag error: {anime_data.get('message', 'Unknown error')}")
-            return render(request, 'streamapp/detail_anime.html', {'error': anime_data.get('message', 'Terjadi kesalahan saat memuat data')})
-        
-        # Tambahkan thumbnail_url sebagai alias untuk url_cover jika belum ada
-        if 'url_cover' in anime_data and anime_data['url_cover'] and not anime_data.get('thumbnail_url'):
-            anime_data['thumbnail_url'] = anime_data['url_cover']
-        
-        # Pastikan semua field yang diperlukan ada
-        required_fields = ['title', 'thumbnail_url', 'sinopsis', 'genres', 'details', 'episode_list']
-        for field in required_fields:
-            if field not in anime_data:
-                logger.warning(f"Field {field} tidak ditemukan dalam data anime")
-                if field == 'title':
-                    anime_data[field] = f"Anime {anime_slug}"
-                elif field == 'thumbnail_url':
-                    anime_data[field] = "/static/images/placeholder.jpg"
-                elif field == 'sinopsis':
-                    anime_data[field] = "Tidak ada sinopsis tersedia."
-                elif field == 'genres':
-                    anime_data[field] = []
-                elif field == 'details':
-                    anime_data[field] = {}
-                elif field == 'episode_list':
-                    anime_data[field] = []
-        
-        # Render template dengan data anime
-        context = {
-            'anime': anime_data
-        }
-        
-        return render(request, 'streamapp/detail_anime.html', context=context)
+        if not anime_data or anime_data.get('error', False):
+            logger.warning(f"Data anime tidak ditemukan atau error untuk slug: {anime_slug}")
+            context = {'error': anime_data.get('message', 'Anime tidak ditemukan') if anime_data else 'Anime tidak ditemukan'}
+            response = render(request, 'streamapp/detail_anime.html', context)
+        else:
+            # Pastikan semua field yang diperlukan ada
+            # ... (logika untuk memastikan field ada)
+            context = {'anime': anime_data}
+            response = render(request, 'streamapp/detail_anime.html', context=context)
     
     except Exception as e:
         logger.error(f"Error saat mendapatkan detail anime: {e}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        return render(request, 'streamapp/detail_anime.html', {'error': f'Terjadi kesalahan saat memuat data: {str(e)}'})
+        context = {'error': f'Terjadi kesalahan saat memuat data: {str(e)}'}
+        response = render(request, 'streamapp/detail_anime.html', context)
+    
+    # Set Cache-Control header to prevent browser caching
+    if response:
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+
+    return response
     
     
-@async_cache(ttl=60*15, prefix='all_anime_terbaru_')
 async def get_all_anime_terbaru_data(page=1, max_pages=5):
     """
     Fungsi untuk mendapatkan data semua anime terbaru dengan caching.
@@ -406,18 +427,53 @@ async def get_all_anime_terbaru_data(page=1, max_pages=5):
         # Jika meminta halaman tertentu
         result = await asyncio.to_thread(get_anime_terbaru, page)
         
+        # Periksa apakah hasil memiliki struktur baru dengan confidence score
+        if isinstance(result, dict) and 'confidence_score' in result and 'data' in result:
+            logger.info(f"Mendapatkan data anime terbaru halaman {page} dengan confidence score: {result['confidence_score']}")
+            result = result['data']
+        
         # Log untuk debugging
-        logger.info(f"Anime terbaru halaman {page}: {len(result)} item")
+        logger.info(f"Anime terbaru halaman {page}: {len(result) if result else 0} item")
         
         # Pastikan result tidak None
         if result is None:
             result = []
         
+        # Proses data untuk memastikan anime_slug ada
+        processed_data = []
+        for anime in result:
+            # Periksa apakah anime adalah dictionary
+            if not isinstance(anime, dict):
+                logger.error(f"Data anime bukan dictionary: {anime}")
+                continue
+                
+            # Tambahkan anime_slug jika belum ada
+            if not anime.get('anime_slug'):
+                # Ekstrak anime_slug dari URL
+                if anime.get('url', "N/A") != "N/A":
+                    import re
+                    anime_match = re.search(r'anime/([^/]+)', anime['url'])
+                    if anime_match:
+                        anime['anime_slug'] = anime_match.group(1)
+                    else:
+                        # Jika tidak bisa ekstrak dari URL, gunakan judul sebagai fallback
+                        if anime.get('judul'):
+                            import re
+                            # Buat slug dari judul
+                            slug = re.sub(r'[^a-zA-Z0-9]', '-', anime.get('judul', '')).lower()
+                            slug = re.sub(r'-+', '-', slug).strip('-')
+                            anime['anime_slug'] = slug
+                        else:
+                            # Jika tidak ada judul, gunakan placeholder
+                            anime['anime_slug'] = 'unknown-anime'
+            
+            processed_data.append(anime)
+        
         return {
             "current_page": page,
-            "data": result,
+            "data": processed_data,
             "total_pages": 5,  # Perkiraan jumlah halaman
-            "anime_count": len(result)
+            "anime_count": len(processed_data)
         }
     else:
         # Jika meminta semua data dari beberapa halaman
@@ -426,12 +482,45 @@ async def get_all_anime_terbaru_data(page=1, max_pages=5):
         for p in range(1, max_pages + 1):
             page_data = await asyncio.to_thread(get_anime_terbaru, p)
             
+            # Periksa apakah hasil memiliki struktur baru dengan confidence score
+            if isinstance(page_data, dict) and 'confidence_score' in page_data and 'data' in page_data:
+                logger.info(f"Mendapatkan data anime terbaru halaman {p} dengan confidence score: {page_data['confidence_score']}")
+                page_data = page_data['data']
+            
             # Log untuk debugging
             logger.info(f"Anime terbaru halaman {p}: {len(page_data) if page_data else 0} item")
             
             if not page_data:
                 break
-            all_data.extend(page_data)
+                
+            # Proses data untuk memastikan anime_slug ada
+            for anime in page_data:
+                # Periksa apakah anime adalah dictionary
+                if not isinstance(anime, dict):
+                    logger.error(f"Data anime bukan dictionary: {anime}")
+                    continue
+                    
+                # Tambahkan anime_slug jika belum ada
+                if not anime.get('anime_slug'):
+                    # Ekstrak anime_slug dari URL
+                    if anime.get('url', "N/A") != "N/A":
+                        import re
+                        anime_match = re.search(r'anime/([^/]+)', anime['url'])
+                        if anime_match:
+                            anime['anime_slug'] = anime_match.group(1)
+                        else:
+                            # Jika tidak bisa ekstrak dari URL, gunakan judul sebagai fallback
+                            if anime.get('judul'):
+                                import re
+                                # Buat slug dari judul
+                                slug = re.sub(r'[^a-zA-Z0-9]', '-', anime.get('judul', '')).lower()
+                                slug = re.sub(r'-+', '-', slug).strip('-')
+                                anime['anime_slug'] = slug
+                            else:
+                                # Jika tidak ada judul, gunakan placeholder
+                                anime['anime_slug'] = 'unknown-anime'
+                
+                all_data.append(anime)
         
         return {
             "current_page": 1,
@@ -444,6 +533,7 @@ async def all_list_anime_terbaru(request):
     """
     View untuk menampilkan semua anime terbaru dengan pagination.
     """
+    response = None
     # Ambil parameter page dari query string, default ke 1 jika tidak ada
     page = request.GET.get('page', 1)
     try:
@@ -459,7 +549,7 @@ async def all_list_anime_terbaru(request):
         max_pages = 5
     
     try:
-        # Dapatkan data anime terbaru dengan caching
+        # Dapatkan data anime terbaru
         anime_data = await get_all_anime_terbaru_data(page, max_pages)
         
         # Buat context untuk template
@@ -469,15 +559,23 @@ async def all_list_anime_terbaru(request):
             'max_pages': max_pages
         }
         
-        return render(request, 'streamapp/all_list_anime_terbaru.html', context=context)
+        response = render(request, 'streamapp/all_list_anime_terbaru.html', context=context)
     
     except Exception as e:
         print(f"Error saat mendapatkan data anime terbaru: {e}")
-        return render(request, 'streamapp/all_list_anime_terbaru.html', {'error': 'Terjadi kesalahan saat memuat data'})
+        context = {'error': 'Terjadi kesalahan saat memuat data'}
+        response = render(request, 'streamapp/all_list_anime_terbaru.html', context)
+
+    # Set Cache-Control header to prevent browser caching
+    if response:
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+
+    return response
     
     
     
-@async_cache(ttl=60*60*3, prefix='jadwal_rilis_')  # Cache selama 3 jam
 async def get_jadwal_rilis_data(day=None):
     """
     Fungsi untuk mendapatkan data jadwal rilis dengan caching.
@@ -488,31 +586,83 @@ async def get_jadwal_rilis_data(day=None):
     try:
         result = await asyncio.to_thread(get_jadwal_rilis, day)
         
+        # Periksa apakah hasil memiliki struktur baru dengan confidence score
+        if isinstance(result, dict) and 'confidence_score' in result and 'data' in result:
+            logger.info(f"Mendapatkan data jadwal rilis dengan confidence score: {result['confidence_score']}")
+            result = result['data']
+        
+        # Validasi hasil
+        if result is None:
+            logger.warning("Hasil jadwal rilis adalah None")
+            if day:
+                return {"day": day.capitalize(), "data": []}
+            else:
+                return {}
+        
+        # Periksa tipe data hasil
+        if not isinstance(result, (dict, list)):
+            logger.error(f"Hasil jadwal rilis bukan dictionary atau list: {type(result)}")
+            if day:
+                return {"day": day.capitalize(), "data": []}
+            else:
+                # Buat dictionary kosong untuk semua hari
+                empty_result = {}
+                for d in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
+                    empty_result[d] = []
+                return empty_result
+        
         if day:
             # Format hasil untuk konsistensi dengan format lama
+            # Pastikan data adalah list
+            if not isinstance(result, list):
+                logger.warning(f"Hasil jadwal rilis untuk hari {day} bukan list: {type(result)}")
+                result = []
+                
             return {
                 "day": day.capitalize(),
                 "data": result
             }
         else:
-            # Hasil sudah dalam format yang benar
+            # Hasil seharusnya dictionary
+            if not isinstance(result, dict):
+                logger.warning(f"Hasil jadwal rilis untuk semua hari bukan dictionary: {type(result)}")
+                # Buat dictionary kosong untuk semua hari
+                empty_result = {}
+                for d in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
+                    empty_result[d] = []
+                return empty_result
+                
+            # Pastikan semua nilai dalam dictionary adalah list
+            for key, value in result.items():
+                if not isinstance(value, list):
+                    logger.warning(f"Nilai untuk hari {key} bukan list: {type(value)}")
+                    result[key] = []
+                    
             return result
     except Exception as e:
         logger.error(f"Error saat mendapatkan jadwal rilis: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
         if day:
             return {"day": day.capitalize(), "data": []}
         else:
-            return {}
+            # Buat dictionary kosong untuk semua hari
+            empty_result = {}
+            for d in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
+                empty_result[d] = []
+            return empty_result
 
 async def all_list_jadwal_rilis(request):
     """
     View untuk menampilkan jadwal rilis anime.
     """
+    response = None
     # Ambil parameter day dari query string, default ke None jika tidak ada
     day = request.GET.get('day', None)
     
     try:
-        # Dapatkan data jadwal rilis dengan caching
+        # Dapatkan data jadwal rilis
         jadwal_data = await get_jadwal_rilis_data(day)
         
         # Buat context untuk template
@@ -522,14 +672,22 @@ async def all_list_jadwal_rilis(request):
             'days_of_week': ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         }
         
-        return render(request, 'streamapp/all_list_jadwal_rilis.html', context=context)
+        response = render(request, 'streamapp/all_list_jadwal_rilis.html', context=context)
     
     except Exception as e:
         print(f"Error saat mendapatkan data jadwal rilis: {e}")
-        return render(request, 'streamapp/all_list_jadwal_rilis.html', {'error': 'Terjadi kesalahan saat memuat data'})
+        context = {'error': 'Terjadi kesalahan saat memuat data'}
+        response = render(request, 'streamapp/all_list_jadwal_rilis.html', context)
+
+    # Set Cache-Control header to prevent browser caching
+    if response:
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+
+    return response
     
 
-@async_cache(ttl=60*60*2, prefix='all_movie_')  # Cache selama 2 jam
 async def get_all_movie_data(page=1):
     """
     Fungsi untuk mendapatkan data semua movie dengan caching.
@@ -539,6 +697,11 @@ async def get_all_movie_data(page=1):
         # Ambil data movie dari halaman yang diminta
         movie_data = await asyncio.to_thread(get_movie_list, page)
         
+        # Periksa apakah hasil memiliki struktur baru dengan confidence score
+        if isinstance(movie_data, dict) and 'confidence_score' in movie_data and 'data' in movie_data:
+            logger.info(f"Mendapatkan data movie halaman {page} dengan confidence score: {movie_data['confidence_score']}")
+            movie_data = movie_data['data']
+        
         # Log untuk debugging
         logger.info(f"Movie halaman {page}: {len(movie_data) if movie_data else 0} item")
         
@@ -547,7 +710,14 @@ async def get_all_movie_data(page=1):
             movie_data = []
         
         # Tambahkan anime_slug ke setiap movie jika belum ada
+        processed_movie_data = []
         for movie in movie_data:
+            # Periksa apakah movie adalah dictionary
+            if not isinstance(movie, dict):
+                logger.error(f"Data movie bukan dictionary: {movie}")
+                continue
+                
+            # Tambahkan anime_slug jika belum ada
             if not movie.get('anime_slug'):
                 # Ekstrak anime_slug dari URL
                 if movie.get('url', "N/A") != "N/A":
@@ -555,6 +725,22 @@ async def get_all_movie_data(page=1):
                     anime_match = re.search(r'anime/([^/]+)', movie['url'])
                     if anime_match:
                         movie['anime_slug'] = anime_match.group(1)
+                    else:
+                        # Jika tidak bisa ekstrak dari URL, gunakan judul sebagai fallback
+                        if movie.get('judul'):
+                            import re
+                            # Buat slug dari judul
+                            slug = re.sub(r'[^a-zA-Z0-9]', '-', movie.get('judul', '')).lower()
+                            slug = re.sub(r'-+', '-', slug).strip('-')
+                            movie['anime_slug'] = slug
+                        else:
+                            # Jika tidak ada judul, gunakan placeholder
+                            movie['anime_slug'] = 'unknown-movie'
+            
+            processed_movie_data.append(movie)
+        
+        # Gunakan data yang sudah diproses
+        movie_data = processed_movie_data
         
         # Perkirakan jumlah halaman maksimal (karena API mungkin tidak menyediakan informasi ini)
         # Jika movie_data kosong, berarti kita sudah mencapai halaman terakhir
@@ -581,6 +767,7 @@ async def all_list_movie(request):
     """
     View untuk menampilkan semua movie dengan pagination.
     """
+    response = None
     # Ambil parameter page dari query string, default ke 1 jika tidak ada
     page = request.GET.get('page', 1)
     try:
@@ -589,7 +776,7 @@ async def all_list_movie(request):
         page = 1
     
     try:
-        # Dapatkan data movie dengan caching
+        # Dapatkan data movie
         movie_data = await get_all_movie_data(page)
         
         # Buat context untuk template
@@ -598,266 +785,119 @@ async def all_list_movie(request):
             'current_page': page
         }
         
-        return render(request, 'streamapp/all_list_movie.html', context=context)
+        response = render(request, 'streamapp/all_list_movie.html', context=context)
     
     except Exception as e:
         print(f"Error saat mendapatkan data movie: {e}")
-        return render(request, 'streamapp/all_list_movie.html', {'error': 'Terjadi kesalahan saat memuat data'})
+        context = {'error': 'Terjadi kesalahan saat memuat data'}
+        response = render(request, 'streamapp/all_list_movie.html', context)
+
+    # Set Cache-Control header to prevent browser caching
+    if response:
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+
+    return response
     
     
-@async_cache(ttl=60*60*2, prefix='detail_episode_')  # Cache selama 2 jam
+def _transform_episode_detail_data(raw_data: dict, episode_url: str) -> dict:
+    """
+    Transforms raw episode data into the structure expected by the template.
+    """
+    logger.info(f"Raw episode data received for {episode_url}: {raw_data}")
+    if not raw_data or not isinstance(raw_data, dict):
+        return {
+            "error": True,
+            "message": f"Data episode tidak valid atau kosong untuk URL: {episode_url}",
+            "title": "Episode Tidak Ditemukan",
+            "anime_info": {},
+            "navigation": {},
+            "video_urls": [],
+            "download_links": [],
+            "other_episodes": []
+        }
+
+    return {
+        "title": raw_data.get('judul_episode') or raw_data.get('title', "Judul Episode Tidak Tersedia"),
+        "anime_info": raw_data.get('anime_info', {}),
+        "navigation": raw_data.get('navigation', {}),
+        "streaming_servers": raw_data.get('streaming_servers') or raw_data.get('video_urls', []),
+        "download_links": raw_data.get('download_links') or raw_data.get('downloads', []),
+        "other_episodes": raw_data.get('other_episodes', []),
+        "error": raw_data.get('error', False),
+        "message": raw_data.get('message', '')
+    }
+
 async def get_detail_episode_data(episode_url):
     """
     Fungsi untuk mendapatkan data detail episode dengan caching.
     """
-    # Buat cache key yang unik untuk setiap episode_url
-    cache_key = f"detail_episode_{episode_url.replace('/', '_')}"
-    stale_cache_key = f"stale_detail_episode_{episode_url.replace('/', '_')}"
-    
-    # Cek cache terlebih dahulu
-    cached_data = await cache.aget(cache_key)
-    if cached_data:
-        logger.info(f"Menggunakan data cache untuk episode: {episode_url}")
-        return cached_data
-    
-    # Jika tidak ada di cache, ambil data baru
+    logger.info(f"Mengambil detail episode dari API: {episode_url}")
     try:
-        # Gunakan asyncio.to_thread untuk menjalankan fungsi yang blocking di thread terpisah
-        logger.info(f"Mengambil detail episode dari API: {episode_url}")
-        result = await asyncio.to_thread(get_episode_detail, episode_url)
+        get_episode_detail_async = sync_to_async(get_episode_detail)
+        raw_result = await get_episode_detail_async(episode_url)
         
-        # Simpan hasil ke cache
-        if result:
-            logger.info(f"Berhasil mendapatkan data episode: {episode_url}")
-            await cache.aset(cache_key, result, 60*60*2)  # Cache selama 2 jam
-            # Simpan juga sebagai cache lama untuk fallback
-            await cache.aset(stale_cache_key, result, 60*60*24*7)  # Simpan selama 7 hari
-            return result
-        else:
-            logger.warning(f"API mengembalikan data kosong untuk episode: {episode_url}")
-            # Coba gunakan cache lama jika data kosong
-            stale_cache = await cache.aget(stale_cache_key)
-            if stale_cache:
-                logger.info(f"Menggunakan data cache lama untuk episode: {episode_url}")
-                return stale_cache
-            return None
-    except Exception as e:
-        logger.error(f"Error saat mendapatkan detail episode: {e}")
-        # Coba gunakan cache lama jika terjadi error
-        stale_cache = await cache.aget(stale_cache_key)
-        if stale_cache:
-            logger.info(f"Menggunakan data cache lama untuk episode: {episode_url}")
-            return stale_cache
-        return None
+        transformed_result = _transform_episode_detail_data(raw_result, episode_url)
 
-# Fungsi sinkron untuk mendapatkan iklan aktif
-def get_active_ads_sync(position=None):
-    """
-    Fungsi sinkron untuk mendapatkan iklan yang aktif berdasarkan posisi.
-    """
-    try:
-        now = timezone.now()
-        print(f"Current time: {now}")
+        if not transformed_result.get('error'):
+            logger.info(f"Berhasil mendapatkan dan mentransformasi data episode: {episode_url}")
+            await cache.aset(f"detail_episode_{episode_url.replace('/', '_')}", transformed_result, 60*60*2)
         
-        # Dapatkan semua iklan untuk debugging
-        all_ads = list(Advertisement.objects.all())
-        print(f"Total iklan di database: {len(all_ads)}")
-        for ad in all_ads:
-            print(f"Iklan: {ad.name}, Posisi: {ad.position}, Aktif: {ad.is_active}, Start: {ad.start_date}, End: {ad.end_date}")
-        
-        # Filter iklan yang aktif dan dalam rentang tanggal yang valid
-        ads_query = Advertisement.objects.filter(is_active=True)
-        print(f"Iklan aktif: {ads_query.count()}")
-        
-        # Filter berdasarkan tanggal mulai dan berakhir
-        date_filtered = ads_query.filter(
-            (models.Q(start_date__isnull=True) | models.Q(start_date__lte=now)) &
-            (models.Q(end_date__isnull=True) | models.Q(end_date__gte=now))
-        )
-        print(f"Iklan dalam rentang tanggal valid: {date_filtered.count()}")
-        
-        # Filter berdasarkan posisi jika ada
-        if position:
-            position_filtered = date_filtered.filter(position=position)
-            print(f"Iklan untuk posisi {position}: {position_filtered.count()}")
-        else:
-            position_filtered = date_filtered
-            print("Tidak ada filter posisi")
-        
-        # Urutkan berdasarkan prioritas (tinggi ke rendah)
-        ordered_ads = position_filtered.order_by('-priority')
-        
-        # Konversi queryset ke list
-        result = list(ordered_ads)
-        print(f"Hasil akhir: {len(result)} iklan")
-        for ad in result:
-            print(f"Iklan hasil: {ad.name}, Posisi: {ad.position}")
-        
-        return result
-    except Exception as e:
-        print(f"Error saat mendapatkan iklan aktif: {e}")
-        import traceback
-        traceback.print_exc()
-        return []
+        return transformed_result
 
-# Fungsi asinkron yang memanggil fungsi sinkron menggunakan sync_to_async
-async def get_active_ads(position=None):
-    """
-    Fungsi asinkron untuk mendapatkan iklan yang aktif berdasarkan posisi.
-    Menggunakan sync_to_async untuk memanggil fungsi sinkron dari konteks asinkron.
-    """
-    try:
-        # Gunakan sync_to_async untuk memanggil fungsi sinkron dari konteks asinkron
-        return await sync_to_async(get_active_ads_sync)(position)
     except Exception as e:
-        print(f"Error saat mendapatkan iklan aktif (async): {e}")
-        import traceback
-        traceback.print_exc()
-        return []
+        logger.error(f"Error saat mengambil detail episode: {e}")
+        return _transform_episode_detail_data({}, episode_url)
+
 
 async def detail_episode_video(request, episode_slug=None):
     """
     View untuk menampilkan detail episode dengan video player.
     """
+    response = None
     if not episode_slug:
         logger.warning("Episode slug tidak diberikan")
-        return render(request, 'streamapp/detail_episode_video.html', {'error': 'Episode tidak ditemukan'})
+        context = {'error': 'Episode tidak ditemukan'}
+        response = render(request, 'streamapp/detail_episode_video.html', context)
+        return response
     
     try:
-        # Tambahkan logging untuk debug
         logger.info(f"Menerima request untuk episode_slug: {episode_slug}")
-        
-        # Bangun URL lengkap dengan penanganan URL yang lebih baik
-        # Periksa apakah episode_slug sudah berisi URL lengkap atau domain
-        if episode_slug.startswith(('http://', 'https://')):
-            # Jika episode_slug sudah berupa URL lengkap, gunakan langsung
-            episode_url = episode_slug
-            logger.info(f"Menggunakan URL lengkap dari slug: {episode_url}")
-        elif ':' in episode_slug:
-            # Jika episode_slug berisi karakter ':' (seperti https:v1.samehadaku.how...)
-            # Ini menandakan URL yang tidak valid, coba perbaiki
-            logger.warning(f"Mendeteksi URL tidak valid dengan ':': {episode_slug}")
-            
-            # Coba ekstrak bagian yang valid
-            if 'v1.samehadaku.how' in episode_slug:
-                # Jika berisi domain v1.samehadaku.how, gunakan domain tersebut
-                # Pisahkan domain dan path dengan benar
-                parts = episode_slug.replace('https:', 'https://').split('how')
-                if len(parts) > 1:
-                    domain = parts[0] + 'how'
-                    path = parts[1]
-                    # Pastikan ada garis miring (/) antara domain dan path
-                    episode_url = f"{domain}/{path.lstrip('/')}"
-                else:
-                    # Fallback jika pemisahan gagal
-                    episode_url = episode_slug.replace('https:', 'https://')
-                
-                logger.info(f"URL diperbaiki menjadi: {episode_url}")
-            else:
-                # Jika format tidak dikenali, gunakan base_url default
-                base_url = "https://v1.samehadaku.how/"
-                # Hapus bagian yang mungkin berisi protokol tidak valid
-                clean_slug = episode_slug.split(':')[-1]
-                episode_url = f"{base_url}{clean_slug}/"
-                logger.info(f"URL dibersihkan menjadi: {episode_url}")
-        else:
-            # Jika episode_slug adalah slug biasa, gunakan base_url
-            base_url = "https://v1.samehadaku.how/"
-            episode_url = f"{base_url}{episode_slug}/"
-            logger.info(f"URL dibangun dengan base_url: {episode_url}")
-        
-        # Dapatkan data detail episode dengan caching
-        episode_data = await get_detail_episode_data(episode_url)
-        
-        # Jika data tidak ditemukan, kembalikan halaman kosong
-        if not episode_data:
-            logger.warning(f"Data episode tidak ditemukan untuk URL: {episode_url}")
-            return render(request, 'streamapp/detail_episode_video.html', {
-                'error': 'Episode tidak ditemukan',
-                'episode_url': episode_url
-            })
-        
-        # Dapatkan iklan yang aktif untuk berbagai posisi
-        ads = {}
-        debug_info = {
-            'has_advertisement_model': 'Advertisement' in globals(),
-            'positions': [],
-            'ads_found': {},
-            'errors': []
-        }
-        
-        try:
-            # Hanya coba dapatkan iklan jika model Advertisement ada
-            if 'Advertisement' in globals():
-                logger.info("Model Advertisement ditemukan, mencoba mendapatkan iklan")
-                positions = [pos[0] for pos in Advertisement.POSITION_CHOICES]
-                debug_info['positions'] = positions
-                logger.debug(f"Posisi iklan yang tersedia: {positions}")
-                
-                # Dapatkan semua iklan untuk debugging (menggunakan sync_to_async)
-                all_ads = await sync_to_async(list)(Advertisement.objects.all())
-                debug_info['total_ads'] = len(all_ads)
-                debug_info['all_ads'] = [{'name': ad.name, 'position': ad.position, 'is_active': ad.is_active} for ad in all_ads]
-                
-                for position in positions:
-                    logger.debug(f"Mencoba mendapatkan iklan untuk posisi: {position}")
-                    position_ads = await get_active_ads(position)
-                    debug_info['ads_found'][position] = len(position_ads)
-                    
-                    if position_ads:
-                        # Ambil iklan dengan prioritas tertinggi untuk posisi ini
-                        ads[position] = position_ads[0]
-                        logger.info(f"Iklan ditemukan untuk posisi {position}: {position_ads[0].name}")
-                    else:
-                        logger.debug(f"Tidak ada iklan untuk posisi {position}")
-                
-                logger.info(f"Total iklan yang akan ditampilkan: {len(ads)}")
-            else:
-                logger.warning("Model Advertisement tidak ditemukan")
-                debug_info['errors'].append("Model Advertisement tidak ditemukan")
-        except Exception as ad_error:
-            logger.error(f"Error saat mendapatkan iklan: {ad_error}")
-            import traceback
-            logger.error(traceback.format_exc())
-            debug_info['errors'].append(str(ad_error))
-            # Jika ada error dengan iklan, tetap lanjutkan tanpa iklan
-            ads = {}
-        
-        # Pastikan episode_data memiliki semua field yang diperlukan
-        if not episode_data.get('navigation'):
-            episode_data['navigation'] = {}
-        
-        if not episode_data.get('anime_info'):
-            episode_data['anime_info'] = {}
-        
-        if not episode_data.get('other_episodes'):
-            episode_data['other_episodes'] = []
-        
-        # Pastikan semua video_urls ada dan valid
-        if not episode_data.get('video_urls') or not isinstance(episode_data['video_urls'], list):
-            episode_data['video_urls'] = []
-            logger.warning(f"Data video_urls tidak valid untuk episode: {episode_url}")
-        
-        # Render template dengan data episode, iklan, dan debug info
-        context = {
-            'episode': episode_data,
-            'ads': ads,
-            'debug_info': debug_info
-        }
-        
-        return render(request, 'streamapp/detail_episode_video.html', context=context)
-    
-    except Exception as e:
-        logger.error(f"Error saat mendapatkan detail episode: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return render(request, 'streamapp/detail_episode_video.html', {
-            'error': 'Terjadi kesalahan saat memuat data',
-            'error_detail': str(e),
-            'episode_slug': episode_slug
-        })
+        # Asumsi episode_slug adalah bagian terakhir dari URL
+        episode_url = f"https://v1.samehadaku.how/{episode_slug}/"
+        logger.info(f"URL episode yang dibangun: {episode_url}")
 
-@async_cache(ttl=60*5, prefix='search_')  # Cache selama 5 menit
+        episode_data = await get_detail_episode_data(episode_url)
+
+        if not episode_data or episode_data.get('error'):
+            logger.warning(f"Data episode tidak ditemukan atau error untuk URL: {episode_url}")
+            context = {'error': episode_data.get('message', 'Episode tidak ditemukan') if episode_data else 'Episode tidak ditemukan'}
+        else:
+            ads = {}
+            try:
+                positions = [pos[0] for pos in Advertisement.POSITION_CHOICES]
+                for position in positions:
+                    position_ads = await get_active_ads(position)
+                    if position_ads:
+                        ads[position] = position_ads[0]
+            except Exception as ad_error:
+                logger.error(f"Error saat mendapatkan iklan: {ad_error}")
+
+            context = {
+                'episode': episode_data,
+                'ads': ads
+            }
+
+        response = render(request, 'streamapp/detail_episode_video.html', context)
+
+    except Exception as e:
+        logger.error(f"Error di view detail_episode_video: {e}")
+        context = {'error': 'Terjadi kesalahan fatal saat memuat data.'}
+        response = render(request, 'streamapp/detail_episode_video.html', context)
+
+    return response
+
 async def get_search_results(query, max_results=20):
     """
     Fungsi untuk mencari anime berdasarkan query dengan caching.
@@ -905,15 +945,19 @@ async def search(request):
     """
     View untuk menampilkan hasil pencarian.
     """
+    response = None
     # Ambil parameter query dari query string
     query = request.GET.get('q', '')
     
     # Jika query kosong, kembalikan halaman kosong
     if not query:
-        return render(request, 'streamapp/search_results.html', {'query': query, 'results': []})
+        context = {'query': query, 'results': []}
+        response = render(request, 'streamapp/search_results.html', context)
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        return response
     
     try:
-        # Dapatkan hasil pencarian dengan caching dan multi-threading
+        # Dapatkan hasil pencarian
         search_results = await get_search_results(query)
         
         # Buat context untuk template
@@ -923,11 +967,20 @@ async def search(request):
             'result_count': len(search_results) if search_results else 0
         }
         
-        return render(request, 'streamapp/search_results.html', context=context)
+        response = render(request, 'streamapp/search_results.html', context=context)
     
     except Exception as e:
         print(f"Error saat menampilkan hasil pencarian: {e}")
-        return render(request, 'streamapp/search_results.html', {'query': query, 'error': 'Terjadi kesalahan saat memuat data'})
+        context = {'query': query, 'error': 'Terjadi kesalahan saat memuat data'}
+        response = render(request, 'streamapp/search_results.html', context)
+
+    # Set Cache-Control header to prevent browser caching
+    if response:
+        response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+
+    return response
 
 async def user_collection(request):
     """

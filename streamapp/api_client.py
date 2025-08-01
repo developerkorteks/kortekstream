@@ -27,6 +27,27 @@ def get_api_endpoints():
         # Ambil langsung dari database, jangan gunakan cache
         endpoints = list(APIEndpoint.objects.filter(is_active=True).order_by('-priority'))
         
+        # Filter endpoint yang tidak berfungsi
+        working_endpoints = []
+        for endpoint in endpoints:
+            # Periksa apakah endpoint berfungsi dengan mencoba mengakses /anime-terbaru
+            try:
+                url = f"{endpoint.url.rstrip('/')}/anime-terbaru"
+                logger.info(f"Checking if endpoint {endpoint.name} ({url}) is working...")
+                response = requests.get(url, timeout=3)
+                if response.status_code >= 200 and response.status_code < 300:
+                    logger.info(f"Endpoint {endpoint.name} ({url}) is working")
+                    working_endpoints.append(endpoint)
+                else:
+                    logger.warning(f"Endpoint {endpoint.name} ({url}) returned status code {response.status_code}")
+            except Exception as e:
+                logger.warning(f"Endpoint {endpoint.name} ({endpoint.url}) is not working: {e}")
+        
+        # Jika ada endpoint yang berfungsi, gunakan itu
+        if working_endpoints:
+            logger.info(f"Using {len(working_endpoints)} working endpoints")
+            endpoints = working_endpoints
+        
         # Jika tidak ada endpoint aktif, gunakan default
         if not endpoints:
             default_url = getattr(settings, "API_BASE_URL", "http://localhost:8001/api/v1")
@@ -65,509 +86,215 @@ def create_temp_endpoint(url, name="Default", source_domain="v1.samehadaku.how")
 class FallbackAPIClient:
     """
     Client for interacting with multiple FastAPI backends with fallback support.
+    This client is stateful and will handle multi-level fallbacks automatically.
     """
     def __init__(self):
-        self.endpoints = get_api_endpoints()
         self.session = requests.Session()
         self.session.headers.update({
             "User-Agent": "KortekStream Django Client",
             "Accept": "application/json",
         })
-        # Cache for failed endpoints to avoid retrying too often
-        self.failed_endpoints = {}
-        # Default timeout values
-        self.connect_timeout = 3  # seconds
-        self.read_timeout = 10    # seconds
-        # Informasi tentang API yang sedang digunakan
-        self.current_api = {
-            "endpoint": None,
-            "last_used": None,
-            "success_count": 0,
-            "error_log": []
-        }
-        # Domain sumber yang sedang digunakan
-        self.current_source_domain = None
-    
-    def get_current_source_domain(self):
-        """
-        Mendapatkan domain sumber yang sedang digunakan.
-        Jika tidak ada, gunakan domain dari endpoint yang sedang digunakan.
-        Jika tidak ada endpoint yang sedang digunakan, gunakan default dari SiteConfiguration.
-        
-        Returns:
-            Domain sumber yang sedang digunakan
-        """
-        # Jika sudah ada domain sumber yang disimpan, gunakan itu
-        if self.current_source_domain:
-            return self.current_source_domain
-        
-        # Jika ada endpoint yang sedang digunakan, gunakan domain dari endpoint tersebut
-        if self.current_api.get("endpoint") and hasattr(self.current_api["endpoint"], "source_domain"):
-            return self.current_api["endpoint"].source_domain
-        
-        # Jika tidak ada, gunakan default dari SiteConfiguration
-        from .models import SiteConfiguration
-        return SiteConfiguration.get_config('SOURCE_DOMAIN', 'v1.samehadaku.how')
-    
+        self.connect_timeout = 3
+        self.read_timeout = 10
+        self.endpoints = []
+        self.current_endpoint_index = 0
+
     def refresh_endpoints(self):
         """
-        Refresh the list of endpoints from database.
+        Refresh the list of endpoints from the database and reset the client's state.
         """
-        # Ambil langsung dari database untuk memastikan data terbaru
+        logger.info("Refreshing API endpoints list...")
         self.endpoints = get_api_endpoints()
-        # Reset failed endpoints cache
-        self.failed_endpoints = {}
-        logger.info(f"Endpoint list refreshed, {len(self.endpoints)} active endpoints found")
-    
+        self.current_endpoint_index = 0
+        if not self.endpoints:
+            logger.critical("No active API endpoints found!")
+        else:
+            logger.info(f"{len(self.endpoints)} active endpoints loaded. Primary API is '{self.endpoints[0].name}'.")
+
+    def _fallback_to_next_endpoint(self):
+        """
+        Handles the core fallback logic: clear cache, move to the next API.
+        Returns True if fallback was successful, False otherwise.
+        """
+        # Clear all Django cache immediately on any failure that triggers a fallback.
+        logger.warning("API failure detected. Clearing all cache to prevent stale data.")
+        cache.clear()
+
+        if self.current_endpoint_index + 1 < len(self.endpoints):
+            old_api_name = self.endpoints[self.current_endpoint_index].name
+            self.current_endpoint_index += 1
+            new_api_name = self.endpoints[self.current_endpoint_index].name
+            logger.warning(f"FALLBACK ACTIVATED: Switching from '{old_api_name}' to '{new_api_name}'.")
+            return True
+        else:
+            logger.critical("All available API endpoints have failed. No more fallbacks available.")
+            return False
+
     def _handle_response(self, response: requests.Response) -> Any:
         """
-        Handle API response.
-        
-        Args:
-            response: Response from API
-            
-        Returns:
-            Response data
-            
-        Raises:
-            Exception: If response status code is not 2xx
+        Handles API response, checking for HTTP errors and low confidence scores.
         """
+        current_endpoint = self.get_current_endpoint()
+        current_endpoint_name = current_endpoint.name if current_endpoint else "Unknown"
         try:
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            
+            confidence_score = data.get("confidence_score", 1.0)
+            if confidence_score < 0.5:
+                logger.warning(f"Confidence score from '{current_endpoint_name}' is too low ({confidence_score}). Triggering fallback.")
+                raise Exception(f"Confidence score too low: {confidence_score}")
+            
+            return data
         except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP error: {e}")
-            # Try to get error details from response
-            error_detail = "Unknown error"
-            try:
-                error_data = response.json()
-                error_detail = error_data.get("detail", str(error_data))
-            except:
-                error_detail = response.text or str(e)
-            
-            logger.error(f"API error: {error_detail}")
-            raise Exception(f"API error: {error_detail}")
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request error: {e}")
-            raise Exception(f"Request error: {e}")
+            logger.error(f"HTTP error from '{current_endpoint_name}': {e}")
+            raise Exception(f"API HTTP error: {e}")
         except json.JSONDecodeError as e:
-            logger.error(f"JSON decode error: {e}")
+            logger.error(f"JSON decode error from '{current_endpoint_name}': {e}")
             raise Exception(f"JSON decode error: {e}")
-    
-    def _should_retry_endpoint(self, endpoint_url: str) -> bool:
+
+    def get_current_endpoint(self) -> Any:
         """
-        Check if we should retry a previously failed endpoint.
-        
-        Args:
-            endpoint_url: URL of the endpoint
+        Safely gets the current endpoint object.
+        """
+        if not self.endpoints or self.current_endpoint_index >= len(self.endpoints):
+            return None
+        return self.endpoints[self.current_endpoint_index]
+
+    def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None, is_retry: bool = False) -> Any:
+        """
+        Make a GET request. Handles fallbacks and retries automatically.
+        """
+        if not is_retry:
+            self.refresh_endpoints()
+
+        api_endpoint = self.get_current_endpoint()
+        if not api_endpoint:
+            raise Exception("No API endpoint configured after refresh.")
+
+        request_params = params.copy() if params else {}
+        if is_retry:
+            request_params['force_refresh'] = True
+            logger.info(f"This is a fallback retry. Forcing cache refresh on '{api_endpoint.name}'.")
+
+        url = f"{api_endpoint.url.rstrip('/')}/{endpoint.lstrip('/')}"
+        logger.info(f"Trying GET {url} with params {request_params}")
+
+        try:
+            start_time = time.time()
+            response = self.session.get(url, params=request_params, timeout=(self.connect_timeout, self.read_timeout))
             
-        Returns:
-            True if we should retry, False otherwise
+            result = self._handle_response(response)
+            
+            # Success
+            response_time = (time.time() - start_time) * 1000
+            logger.info(f"Successfully got response from {url} in {response_time:.2f}ms")
+            self._update_api_monitor(api_endpoint, endpoint, "up", response_time=response_time)
+            return result
+
+        except Exception as e:
+            logger.warning(f"Request to '{api_endpoint.name}' failed: {e}")
+            self._update_api_monitor(api_endpoint, endpoint, "error", error_message=str(e))
+            
+            if self._fallback_to_next_endpoint():
+                # Automatically retry the request with the new endpoint
+                return self.get(endpoint, params, is_retry=True)
+            else:
+                raise Exception("All API endpoints failed.")
+
+    def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None, is_retry: bool = False) -> Any:
         """
-        if endpoint_url not in self.failed_endpoints:
-            return True
-        
-        # Get last failure time and count
-        last_failure, failure_count = self.failed_endpoints[endpoint_url]
-        
-        # Calculate backoff time based on failure count (exponential backoff)
-        backoff_time = min(60 * 5, 2 ** failure_count)  # Max 5 minutes
-        
-        # Check if enough time has passed since last failure
-        time_passed = time.time() - last_failure
-        return time_passed > backoff_time
-    
-    def _mark_endpoint_failed(self, endpoint_url: str):
+        Make a POST request. Handles fallbacks and retries automatically.
         """
-        Mark an endpoint as failed.
-        
-        Args:
-            endpoint_url: URL of the endpoint
-        """
-        if endpoint_url in self.failed_endpoints:
-            last_failure, failure_count = self.failed_endpoints[endpoint_url]
-            self.failed_endpoints[endpoint_url] = (time.time(), failure_count + 1)
-        else:
-            self.failed_endpoints[endpoint_url] = (time.time(), 1)
-    
-    def _mark_endpoint_success(self, endpoint_url: str):
-        """
-        Mark an endpoint as successful.
-        
-        Args:
-            endpoint_url: URL of the endpoint
-        """
-        if endpoint_url in self.failed_endpoints:
-            del self.failed_endpoints[endpoint_url]
-    
+        if not is_retry:
+            self.refresh_endpoints()
+
+        api_endpoint = self.get_current_endpoint()
+        if not api_endpoint:
+            raise Exception("No API endpoint configured after refresh.")
+
+        request_data = data.copy() if data else {}
+        if is_retry:
+            request_data['force_refresh'] = True
+            logger.info(f"This is a fallback retry. Forcing cache refresh on '{api_endpoint.name}'.")
+
+        url = f"{api_endpoint.url.rstrip('/')}/{endpoint.lstrip('/')}"
+        logger.info(f"Trying POST {url}")
+
+        try:
+            start_time = time.time()
+            response = self.session.post(url, json=request_data, timeout=(self.connect_timeout, self.read_timeout))
+
+            result = self._handle_response(response)
+
+            # Success
+            response_time = (time.time() - start_time) * 1000
+            logger.info(f"Successfully got response from {url} in {response_time:.2f}ms")
+            self._update_api_monitor(api_endpoint, endpoint, "up", response_time=response_time)
+            return result
+
+        except Exception as e:
+            logger.warning(f"Request to '{api_endpoint.name}' failed: {e}")
+            self._update_api_monitor(api_endpoint, endpoint, "error", error_message=str(e))
+            
+            if self._fallback_to_next_endpoint():
+                # Automatically retry the request with the new endpoint
+                return self.post(endpoint, data, is_retry=True)
+            else:
+                raise Exception("All API endpoints failed.")
+
     def _update_api_monitor(self, endpoint, endpoint_path: str, status: str,
                            response_time: Optional[float] = None,
                            error_message: Optional[str] = None,
                            response_data: Optional[str] = None):
         """
         Update API monitor with status and metrics.
-        
-        Args:
-            endpoint: APIEndpoint object
-            endpoint_path: API endpoint path
-            status: Status of the request (up, down, error, timeout)
-            response_time: Response time in milliseconds
-            error_message: Error message if any
-            response_data: Response data if any
         """
         try:
-            # Import here to avoid circular import
             from .models import APIMonitor
-            
-            # Check if endpoint is a temporary object
             if not hasattr(endpoint, 'id'):
                 return
             
-            # Update monitor asynchronously to avoid blocking
             from django.db import transaction
             with transaction.atomic():
                 monitor, created = APIMonitor.objects.get_or_create(
                     endpoint=endpoint,
                     endpoint_path=endpoint_path,
-                    defaults={
-                        'status': status,
-                        'response_time': response_time,
-                        'error_message': error_message,
-                        'response_data': response_data
-                    }
+                    defaults={'status': status, 'response_time': response_time, 'error_message': error_message, 'response_data': response_data}
                 )
-                
                 if not created:
                     monitor.status = status
                     monitor.response_time = response_time
                     monitor.error_message = error_message
                     monitor.response_data = response_data
+                    monitor.last_checked = timezone.now()
                     monitor.save()
         except Exception as e:
             logger.error(f"Error updating API monitor: {e}")
-    
-    def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Any:
-        """
-        Make GET request to API with fallback support.
-        
-        Args:
-            endpoint: API endpoint
-            params: Query parameters
-            
-        Returns:
-            Response data
-            
-        Raises:
-            Exception: If all API endpoints fail
-        """
-        # Refresh endpoints list to ensure we have the latest active endpoints
-        self.refresh_endpoints()
-        
-        # Try each endpoint in order of priority
-        last_exception = None
-        tried_endpoints = []
-        
-        for api_endpoint in self.endpoints:
-            # Skip endpoints that have failed recently
-            if not self._should_retry_endpoint(api_endpoint.url):
-                logger.debug(f"Skipping recently failed endpoint: {api_endpoint.url}")
-                continue
-            
-            url = f"{api_endpoint.url.rstrip('/')}/{endpoint.lstrip('/')}"
-            logger.info(f"Trying GET {url} {params}")
-            tried_endpoints.append(api_endpoint.url)
-            
-            try:
-                start_time = time.time()
-                response = self.session.get(
-                    url,
-                    params=params,
-                    timeout=(self.connect_timeout, self.read_timeout)
-                )
-                response_time = (time.time() - start_time) * 1000  # Convert to ms
-                
-                # Handle response
-                result = self._handle_response(response)
-                
-                # Mark endpoint as successful
-                self._mark_endpoint_success(api_endpoint.url)
-                
-                # Update API monitor
-                self._update_api_monitor(
-                    api_endpoint,
-                    endpoint,
-                    "up",
-                    response_time,
-                    response_data=json.dumps(result)[:1000] if result else None
-                )
-                
-                # Update current API information
-                self.current_api = {
-                    "endpoint": api_endpoint,
-                    "last_used": timezone.now(),
-                    "success_count": self.current_api.get("success_count", 0) + 1,
-                    "error_log": self.current_api.get("error_log", [])
-                }
-                
-                logger.info(f"Successfully got response from {url}")
-                return result
-                
-            except requests.exceptions.Timeout as e:
-                logger.warning(f"Timeout in GET {url}: {e}")
-                self._mark_endpoint_failed(api_endpoint.url)
-                self._update_api_monitor(api_endpoint, endpoint, "timeout", None, str(e))
-                # Log error
-                error_entry = {
-                    "timestamp": timezone.now(),
-                    "endpoint": api_endpoint.name,
-                    "url": url,
-                    "type": "timeout",
-                    "message": str(e)
-                }
-                self.current_api["error_log"] = self.current_api.get("error_log", [])[-9:] + [error_entry]
-                last_exception = e
-                
-            except requests.exceptions.ConnectionError as e:
-                logger.warning(f"Connection error in GET {url}: {e}")
-                self._mark_endpoint_failed(api_endpoint.url)
-                self._update_api_monitor(api_endpoint, endpoint, "down", None, str(e))
-                # Log error
-                error_entry = {
-                    "timestamp": timezone.now(),
-                    "endpoint": api_endpoint.name,
-                    "url": url,
-                    "type": "connection",
-                    "message": str(e)
-                }
-                self.current_api["error_log"] = self.current_api.get("error_log", [])[-9:] + [error_entry]
-                last_exception = e
-                
-            except Exception as e:
-                logger.warning(f"Error in GET {url}: {e}")
-                self._mark_endpoint_failed(api_endpoint.url)
-                self._update_api_monitor(api_endpoint, endpoint, "error", None, str(e))
-                # Log error
-                error_entry = {
-                    "timestamp": timezone.now(),
-                    "endpoint": api_endpoint.name,
-                    "url": url,
-                    "type": "error",
-                    "message": str(e)
-                }
-                self.current_api["error_log"] = self.current_api.get("error_log", [])[-9:] + [error_entry]
-                last_exception = e
-        
-        # If we get here, all endpoints failed
-        logger.error(f"All API endpoints failed for GET {endpoint}: {tried_endpoints}")
-        if last_exception:
-            raise Exception(f"All API endpoints failed: {str(last_exception)}")
-        else:
-            raise Exception("All API endpoints failed")
-    
-    def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Any:
-        """
-        Make POST request to API with fallback support.
-        
-        Args:
-            endpoint: API endpoint
-            data: Request data
-            
-        Returns:
-            Response data
-            
-        Raises:
-            Exception: If all API endpoints fail
-        """
-        # Refresh endpoints list to ensure we have the latest active endpoints
-        self.refresh_endpoints()
-        
-        # Try each endpoint in order of priority
-        last_exception = None
-        tried_endpoints = []
-        
-        for api_endpoint in self.endpoints:
-            # Skip endpoints that have failed recently
-            if not self._should_retry_endpoint(api_endpoint.url):
-                logger.debug(f"Skipping recently failed endpoint: {api_endpoint.url}")
-                continue
-            
-            url = f"{api_endpoint.url.rstrip('/')}/{endpoint.lstrip('/')}"
-            logger.info(f"Trying POST {url}")
-            tried_endpoints.append(api_endpoint.url)
-            
-            try:
-                start_time = time.time()
-                response = self.session.post(
-                    url,
-                    json=data,
-                    timeout=(self.connect_timeout, self.read_timeout)
-                )
-                response_time = (time.time() - start_time) * 1000  # Convert to ms
-                
-                # Handle response
-                result = self._handle_response(response)
-                
-                # Mark endpoint as successful
-                self._mark_endpoint_success(api_endpoint.url)
-                
-                # Update API monitor
-                self._update_api_monitor(
-                    api_endpoint,
-                    endpoint,
-                    "up",
-                    response_time,
-                    response_data=json.dumps(result)[:1000] if result else None
-                )
-                
-                # Update current API information
-                self.current_api = {
-                    "endpoint": api_endpoint,
-                    "last_used": timezone.now(),
-                    "success_count": self.current_api.get("success_count", 0) + 1,
-                    "error_log": self.current_api.get("error_log", [])
-                }
-                
-                # Update current source domain
-                if hasattr(api_endpoint, 'source_domain'):
-                    self.current_source_domain = api_endpoint.source_domain
-                    logger.info(f"Using source domain: {self.current_source_domain}")
-                
-                # Update current source domain
-                if hasattr(api_endpoint, 'source_domain'):
-                    self.current_source_domain = api_endpoint.source_domain
-                    logger.info(f"Using source domain: {self.current_source_domain}")
-                
-                logger.info(f"Successfully got response from {url}")
-                return result
-                
-            except requests.exceptions.Timeout as e:
-                logger.warning(f"Timeout in POST {url}: {e}")
-                self._mark_endpoint_failed(api_endpoint.url)
-                self._update_api_monitor(api_endpoint, endpoint, "timeout", None, str(e))
-                # Log error
-                error_entry = {
-                    "timestamp": timezone.now(),
-                    "endpoint": api_endpoint.name,
-                    "url": url,
-                    "type": "timeout",
-                    "message": str(e)
-                }
-                self.current_api["error_log"] = self.current_api.get("error_log", [])[-9:] + [error_entry]
-                last_exception = e
-                
-            except requests.exceptions.ConnectionError as e:
-                logger.warning(f"Connection error in POST {url}: {e}")
-                self._mark_endpoint_failed(api_endpoint.url)
-                self._update_api_monitor(api_endpoint, endpoint, "down", None, str(e))
-                # Log error
-                error_entry = {
-                    "timestamp": timezone.now(),
-                    "endpoint": api_endpoint.name,
-                    "url": url,
-                    "type": "connection",
-                    "message": str(e)
-                }
-                self.current_api["error_log"] = self.current_api.get("error_log", [])[-9:] + [error_entry]
-                last_exception = e
-                
-            except Exception as e:
-                logger.warning(f"Error in POST {url}: {e}")
-                self._mark_endpoint_failed(api_endpoint.url)
-                self._update_api_monitor(api_endpoint, endpoint, "error", None, str(e))
-                # Log error
-                error_entry = {
-                    "timestamp": timezone.now(),
-                    "endpoint": api_endpoint.name,
-                    "url": url,
-                    "type": "error",
-                    "message": str(e)
-                }
-                self.current_api["error_log"] = self.current_api.get("error_log", [])[-9:] + [error_entry]
-                last_exception = e
-        
-        # If we get here, all endpoints failed
-        logger.error(f"All API endpoints failed for POST {endpoint}: {tried_endpoints}")
-        if last_exception:
-            raise Exception(f"All API endpoints failed: {str(last_exception)}")
-        else:
-            raise Exception("All API endpoints failed")
-
 
     def get_current_api_info(self):
         """
         Mendapatkan informasi tentang API yang sedang digunakan.
-        
-        Returns:
-            Dict berisi informasi tentang API yang sedang digunakan
         """
-        if not self.current_api.get("endpoint"):
+        current_endpoint = self.get_current_endpoint()
+        if not current_endpoint:
             return {
-                "status": "not_used",
-                "message": "Belum ada API yang digunakan",
+                "status": "error",
+                "message": "Tidak ada API endpoint yang dikonfigurasi.",
                 "endpoint": None,
-                "last_used": None,
-                "success_count": 0,
-                "error_log": []
             }
         
-        endpoint = self.current_api.get("endpoint")
-        
-        # Cek status endpoint
-        status = "unknown"
-        message = "Status tidak diketahui"
-        
-        if endpoint:
-            # Import di sini untuk menghindari circular import
-            from .models import APIMonitor
-            
-            try:
-                # Cek monitor terbaru untuk endpoint ini
-                monitors = APIMonitor.objects.filter(endpoint=endpoint).order_by('-last_checked')
-                
-                if monitors.exists():
-                    # Hitung jumlah status untuk endpoint ini
-                    status_counts = {}
-                    for monitor in monitors:
-                        status_counts[monitor.status] = status_counts.get(monitor.status, 0) + 1
-                    
-                    # Tentukan status berdasarkan mayoritas
-                    if status_counts.get('up', 0) > status_counts.get('down', 0) + status_counts.get('error', 0) + status_counts.get('timeout', 0):
-                        status = "up"
-                        message = "API berfungsi dengan baik"
-                    elif status_counts.get('down', 0) > 0:
-                        status = "down"
-                        message = "API tidak dapat diakses"
-                    elif status_counts.get('error', 0) > 0:
-                        status = "error"
-                        message = "API mengembalikan error"
-                    elif status_counts.get('timeout', 0) > 0:
-                        status = "timeout"
-                        message = "API timeout"
-                    else:
-                        status = "unknown"
-                        message = "Status tidak diketahui"
-            except Exception as e:
-                logger.error(f"Error saat mendapatkan status API: {e}")
-                status = "error"
-                message = f"Error saat mendapatkan status: {e}"
-        
-        # Dapatkan domain sumber yang sedang digunakan
-        source_domain = self.get_current_source_domain()
-        
         return {
-            "status": status,
-            "message": message,
+            "status": "up",
+            "message": "API sedang beroperasi.",
             "endpoint": {
-                "name": endpoint.name,
-                "url": endpoint.url,
-                "priority": endpoint.priority,
-                "source_domain": getattr(endpoint, 'source_domain', source_domain)
-            } if endpoint else None,
-            "source_domain": source_domain,
-            "last_used": self.current_api.get("last_used"),
-            "success_count": self.current_api.get("success_count", 0),
-            "error_log": self.current_api.get("error_log", [])
+                "name": current_endpoint.name,
+                "url": current_endpoint.url,
+                "priority": current_endpoint.priority,
+                "source_domain": getattr(current_endpoint, 'source_domain', 'N/A')
+            }
         }
+
 
 # Create a singleton instance
 api_client = FallbackAPIClient()
@@ -682,31 +409,15 @@ def get_anime_detail(anime_slug: str) -> Dict[str, Any]:
     Returns:
         Anime details data
     """
-    # Coba ambil dari cache lokal terlebih dahulu
-    cache_key = f"local_anime_detail_{anime_slug}"
-    cached_data = cache.get(cache_key)
-    if cached_data:
-        logger.info(f"Menggunakan data cache lokal untuk anime: {anime_slug}")
-        return cached_data
-    
     try:
         logger.info(f"Mengambil detail anime dengan slug: {anime_slug}")
         result = api_client.get("anime-detail", params={"anime_slug": anime_slug})
         
         if result:
-            # Jika berhasil mendapatkan data, simpan ke cache lokal
             logger.info(f"Berhasil mendapatkan data anime: {anime_slug}")
-            cache.set(cache_key, result, 60*60*24)  # Cache selama 24 jam
             return result
         else:
             logger.warning(f"API mengembalikan data kosong untuk anime: {anime_slug}")
-            # Coba gunakan data cache lokal jika ada
-            stale_cache = cache.get(f"stale_local_anime_detail_{anime_slug}")
-            if stale_cache:
-                logger.info(f"Menggunakan data cache lokal lama untuk anime: {anime_slug}")
-                return stale_cache
-            
-            # Jika tidak ada data cache, coba gunakan data placeholder
             logger.info(f"Data anime tidak ditemukan untuk slug: {anime_slug}")
             return {
                 "error": True,
@@ -724,12 +435,6 @@ def get_anime_detail(anime_slug: str) -> Dict[str, Any]:
         # Tambahkan informasi lebih detail untuk debugging
         import traceback
         logger.debug(f"Traceback: {traceback.format_exc()}")
-        
-        # Coba gunakan data cache lokal jika ada
-        stale_cache = cache.get(f"stale_local_anime_detail_{anime_slug}")
-        if stale_cache:
-            logger.info(f"Menggunakan data cache lokal lama untuk anime: {anime_slug}")
-            return stale_cache
         
         # Jika tidak ada data cache, gunakan data placeholder
         logger.info(f"Data anime tidak ditemukan untuk slug: {anime_slug}")

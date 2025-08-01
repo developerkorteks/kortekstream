@@ -186,7 +186,39 @@ def test_api_fallback():
         except Exception as e:
             print(f"Error saat mengakses endpoint home setelah pemulihan: {e}")
         
-        print("\n6. Menjalankan pemeriksaan status API...")
+        print("\n6. Menguji validasi confidence score tinggi (0.8)...")
+        try:
+            # Coba akses endpoint movie dengan confidence score tinggi
+            result = api_client.get("movie", params={"confidence": 0.8})
+            print(f"Berhasil mengakses endpoint movie dengan confidence score tinggi: {result}")
+        except Exception as e:
+            print(f"Error saat mengakses endpoint movie dengan confidence score tinggi: {e}")
+        
+        print("\n7. Menguji validasi confidence score rendah (0.3)...")
+        try:
+            # Coba akses endpoint movie dengan confidence score rendah
+            result = api_client.get("movie", params={"confidence": 0.3})
+            print(f"Berhasil mengakses endpoint movie dengan confidence score rendah: {result}")
+        except Exception as e:
+            print(f"Error saat mengakses endpoint movie dengan confidence score rendah (diharapkan): {e}")
+            
+            # Coba akses endpoint movie dengan server kedua (fallback)
+            print("\nMencoba fallback ke server kedua...")
+            try:
+                # Hidupkan server kedua
+                servers[1].start()
+                time.sleep(2)
+                
+                # Refresh endpoint di API client
+                api_client.refresh_endpoints()
+                
+                # Coba akses endpoint movie dengan confidence score tinggi
+                result = api_client.get("movie", params={"confidence": 0.8})
+                print(f"Berhasil mengakses endpoint movie melalui fallback: {result}")
+            except Exception as e:
+                print(f"Error saat mengakses endpoint movie melalui fallback: {e}")
+        
+        print("\n8. Menjalankan pemeriksaan status API...")
         # Jalankan pemeriksaan status API
         call_command('check_api_status', verbosity=2)
         

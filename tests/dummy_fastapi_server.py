@@ -83,108 +83,196 @@ def health_check():
     return {"status": "ok", "server_id": sys.argv[1] if len(sys.argv) > 1 else "unknown"}
 
 @app.get("/home")
-def get_home():
+def get_home(confidence: float = Query(1.0, ge=0.0, le=1.0)):
     """
     Endpoint untuk halaman utama.
+    
+    Args:
+        confidence: Confidence score untuk pengujian validasi
     """
     return {
-        "top10": TOP10_ANIME,
-        "new_eps": ANIME_TERBARU,
-        "movies": MOVIE_LIST,
-        "jadwal_rilis": JADWAL_RILIS
+        "confidence_score": confidence,
+        "data": {
+            "top10": TOP10_ANIME,
+            "new_eps": ANIME_TERBARU,
+            "movies": MOVIE_LIST,
+            "jadwal_rilis": JADWAL_RILIS
+        }
+    }
+
+@app.get("/api/v1/home/")
+def get_home_v1(confidence: float = Query(1.0, ge=0.0, le=1.0), force_refresh: bool = Query(False)):
+    """
+    Endpoint untuk halaman utama (API v1).
+    
+    Args:
+        confidence: Confidence score untuk pengujian validasi
+        force_refresh: Force refresh cache
+    """
+    return {
+        "confidence_score": confidence,
+        "data": {
+            "top10": TOP10_ANIME,
+            "new_eps": ANIME_TERBARU,
+            "movies": MOVIE_LIST,
+            "jadwal_rilis": JADWAL_RILIS
+        }
     }
 
 @app.get("/anime-terbaru")
-def get_anime_terbaru(page: int = Query(1, ge=1)):
+def get_anime_terbaru(page: int = Query(1, ge=1), confidence: float = Query(1.0, ge=0.0, le=1.0)):
     """
     Endpoint untuk anime terbaru.
-    """
-    return ANIME_TERBARU
-
-@app.get("/movie")
-def get_movie(page: int = Query(1, ge=1)):
-    """
-    Endpoint untuk movie.
-    """
-    return MOVIE_LIST
-
-@app.get("/jadwal-rilis")
-def get_jadwal_rilis():
-    """
-    Endpoint untuk jadwal rilis.
-    """
-    return JADWAL_RILIS
-
-@app.get("/jadwal-rilis/{day}")
-def get_jadwal_rilis_day(day: str):
-    """
-    Endpoint untuk jadwal rilis berdasarkan hari.
-    """
-    return JADWAL_RILIS.get(day.lower(), [])
-
-@app.get("/anime-detail")
-def get_anime_detail(anime_slug: str):
-    """
-    Endpoint untuk detail anime.
+    
+    Args:
+        page: Nomor halaman
+        confidence: Confidence score untuk pengujian validasi
     """
     return {
-        "title": f"Anime {anime_slug}",
-        "thumbnail_url": "https://example.com/anime.jpg",
-        "url_cover": "https://example.com/cover.jpg",
-        "sinopsis": "Ini adalah sinopsis anime.",
-        "genres": ["Action", "Adventure"],
-        "details": {"Status": "Ongoing"},
-        "episode_list": [
-            {
-                "episode": "Episode 1",
-                "url": f"/episode/{anime_slug}-episode-1/",
-                "upload_time": "2 hari lalu"
-            }
-        ]
+        "confidence_score": confidence,
+        "data": ANIME_TERBARU
+    }
+
+@app.get("/movie")
+def get_movie(page: int = Query(1, ge=1), confidence: float = Query(1.0, ge=0.0, le=1.0)):
+    """
+    Endpoint untuk movie.
+    
+    Args:
+        page: Nomor halaman
+        confidence: Confidence score untuk pengujian validasi
+    """
+    return {
+        "confidence_score": confidence,
+        "data": MOVIE_LIST
+    }
+
+@app.get("/api/v1/movie/")
+def get_movie_v1(page: int = Query(1, ge=1), confidence: float = Query(1.0, ge=0.0, le=1.0), force_refresh: bool = Query(False)):
+    """
+    Endpoint untuk movie (API v1).
+    
+    Args:
+        page: Nomor halaman
+        confidence: Confidence score untuk pengujian validasi
+        force_refresh: Force refresh cache
+    """
+    return {
+        "confidence_score": confidence,
+        "data": MOVIE_LIST
+    }
+
+@app.get("/jadwal-rilis")
+def get_jadwal_rilis(confidence: float = Query(1.0, ge=0.0, le=1.0)):
+    """
+    Endpoint untuk jadwal rilis.
+    
+    Args:
+        confidence: Confidence score untuk pengujian validasi
+    """
+    return {
+        "confidence_score": confidence,
+        "data": JADWAL_RILIS
+    }
+
+@app.get("/jadwal-rilis/{day}")
+def get_jadwal_rilis_day(day: str, confidence: float = Query(1.0, ge=0.0, le=1.0)):
+    """
+    Endpoint untuk jadwal rilis berdasarkan hari.
+    
+    Args:
+        day: Hari dalam seminggu
+        confidence: Confidence score untuk pengujian validasi
+    """
+    return {
+        "confidence_score": confidence,
+        "data": JADWAL_RILIS.get(day.lower(), [])
+    }
+
+@app.get("/anime-detail")
+def get_anime_detail(anime_slug: str, confidence: float = Query(1.0, ge=0.0, le=1.0)):
+    """
+    Endpoint untuk detail anime.
+    
+    Args:
+        anime_slug: Slug anime
+        confidence: Confidence score untuk pengujian validasi
+    """
+    return {
+        "confidence_score": confidence,
+        "data": {
+            "title": f"Anime {anime_slug}",
+            "thumbnail_url": "https://example.com/anime.jpg",
+            "url_cover": "https://example.com/cover.jpg",
+            "sinopsis": "Ini adalah sinopsis anime.",
+            "genres": ["Action", "Adventure"],
+            "details": {"Status": "Ongoing"},
+            "episode_list": [
+                {
+                    "episode": "Episode 1",
+                    "url": f"/episode/{anime_slug}-episode-1/",
+                    "upload_time": "2 hari lalu"
+                }
+            ]
+        }
     }
 
 @app.get("/episode-detail")
-def get_episode_detail(episode_url: str):
+def get_episode_detail(episode_url: str, confidence: float = Query(1.0, ge=0.0, le=1.0)):
     """
     Endpoint untuk detail episode.
+    
+    Args:
+        episode_url: URL episode
+        confidence: Confidence score untuk pengujian validasi
     """
     return {
-        "title": f"Episode dari {episode_url}",
-        "anime_info": {
-            "title": "Anime Test",
-            "url": "/anime/anime-test/"
-        },
-        "video_urls": [
-            {
-                "quality": "720p",
-                "url": "https://example.com/video.mp4"
-            }
-        ],
-        "navigation": {
-            "prev_episode": None,
-            "next_episode": None,
-            "all_episodes_url": "/anime/anime-test/"
-        },
-        "other_episodes": []
+        "confidence_score": confidence,
+        "data": {
+            "title": f"Episode dari {episode_url}",
+            "anime_info": {
+                "title": "Anime Test",
+                "url": "/anime/anime-test/"
+            },
+            "video_urls": [
+                {
+                    "quality": "720p",
+                    "url": "https://example.com/video.mp4"
+                }
+            ],
+            "navigation": {
+                "prev_episode": None,
+                "next_episode": None,
+                "all_episodes_url": "/anime/anime-test/"
+            },
+            "other_episodes": []
+        }
     }
 
 @app.get("/search")
-def search_anime(query: str):
+def search_anime(query: str, confidence: float = Query(1.0, ge=0.0, le=1.0)):
     """
     Endpoint untuk pencarian anime.
+    
+    Args:
+        query: Query pencarian
+        confidence: Confidence score untuk pengujian validasi
     """
-    return [
-        {
-            "title": f"Result for {query} 1",
-            "url_anime": f"/anime/result-{query}-1/",
-            "thumbnail_url": "https://example.com/result1.jpg"
-        },
-        {
-            "title": f"Result for {query} 2",
-            "url_anime": f"/anime/result-{query}-2/",
-            "thumbnail_url": "https://example.com/result2.jpg"
-        }
-    ]
+    return {
+        "confidence_score": confidence,
+        "data": [
+            {
+                "title": f"Result for {query} 1",
+                "url_anime": f"/anime/result-{query}-1/",
+                "thumbnail_url": "https://example.com/result1.jpg"
+            },
+            {
+                "title": f"Result for {query} 2",
+                "url_anime": f"/anime/result-{query}-2/",
+                "thumbnail_url": "https://example.com/result2.jpg"
+            }
+        ]
+    }
 
 if __name__ == "__main__":
     # Ambil port dari argumen command line
