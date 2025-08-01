@@ -68,7 +68,12 @@ class APIMonitor(models.Model):
     """
     Model untuk menyimpan status dan metrik API.
     """
-    endpoint = models.ForeignKey(APIEndpoint, on_delete=models.CASCADE, related_name="monitors", verbose_name="API Endpoint")
+    endpoint = models.ForeignKey(
+        APIEndpoint,
+        on_delete=models.CASCADE,  # Gunakan CASCADE agar ketika endpoint dihapus, monitor juga dihapus
+        related_name="monitors",
+        verbose_name="API Endpoint"
+    )
     endpoint_path = models.CharField(max_length=255, verbose_name="Endpoint Path")
     status = models.CharField(max_length=20, verbose_name="Status", default="unknown")
     response_time = models.FloatField(verbose_name="Waktu Respons (ms)", null=True, blank=True)

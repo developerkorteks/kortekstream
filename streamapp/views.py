@@ -65,14 +65,103 @@ async def get_movie_data(page=1):
     """
     return await asyncio.to_thread(get_movie_list, page)
 
+
 # Fungsi untuk mendapatkan data anime mingguan dengan caching
 @async_cache(ttl=60*60, prefix='anime_mingguan_')
 async def get_anime_mingguan_data():
     """
     Fungsi untuk mendapatkan data anime mingguan dengan caching.
     """
-    home_data = await asyncio.to_thread(get_home_data)
-    return home_data.get("top10", [])
+    try:
+        # Coba ambil dari get_home_data terlebih dahulu
+        home_data = await asyncio.to_thread(get_home_data)
+        if home_data and "top10" in home_data and home_data["top10"]:
+            logger.info("Berhasil mendapatkan data anime mingguan dari get_home_data")
+            return home_data.get("top10", [])
+        else:
+            logger.warning("Data anime mingguan kosong dari get_home_data, mencoba API fallback")
+            # Jika data kosong, coba ambil dari API fallback
+            # Untuk saat ini, kita tidak memiliki endpoint khusus untuk anime mingguan,
+            # jadi kita gunakan data anime terbaru sebagai fallback
+            anime_terbaru = await get_anime_terbaru_data()
+            if anime_terbaru:
+                logger.info("Menggunakan data anime terbaru sebagai fallback untuk anime mingguan")
+                return anime_terbaru[:10]  # Ambil 10 anime terbaru sebagai fallback
+            else:
+                logger.warning("Gagal mendapatkan data anime mingguan dari semua sumber")
+                return []
+    except Exception as e:
+        logger.error(f"Error saat mendapatkan data anime mingguan: {e}")
+        # Coba ambil dari API fallback
+        try:
+            anime_terbaru = await get_anime_terbaru_data()
+            if anime_terbaru:
+                logger.info("Menggunakan data anime terbaru sebagai fallback untuk anime mingguan")
+                return anime_terbaru[:10]  # Ambil 10 anime terbaru sebagai fallback
+        except Exception as e2:
+            logger.error(f"Error saat mendapatkan data anime terbaru sebagai fallback: {e2}")
+        return []
+
+# Fungsi untuk mengambil data setiap bagian secara terpisah
+async def _fetch_individual_sections(context):
+    """
+    Fungsi untuk mengambil data untuk setiap bagian secara terpisah.
+    Digunakan sebagai fallback ketika get_home_data gagal.
+    
+    Args:
+        context: Dictionary context yang akan diperbarui dengan data yang berhasil diambil
+    """
+    logger.info("Mengambil data untuk setiap bagian secara terpisah")
+    
+    # Ambil data anime terbaru
+    try:
+        logger.info("Mengambil data anime terbaru")
+        anime_terbaru = await get_anime_terbaru_data()
+        if anime_terbaru:
+            context['anime_terbaru'] = anime_terbaru
+            logger.info(f"Berhasil mendapatkan {len(anime_terbaru)} anime terbaru")
+    except Exception as e:
+        logger.error(f"Error saat mengambil data anime terbaru: {e}")
+    
+    # Ambil data movie
+    try:
+        logger.info("Mengambil data movie")
+        movie_data = await get_movie_data()
+        if movie_data:
+            context['movie'] = movie_data
+            logger.info(f"Berhasil mendapatkan {len(movie_data)} movie")
+    except Exception as e:
+        logger.error(f"Error saat mengambil data movie: {e}")
+    
+    # Ambil data jadwal rilis
+    try:
+        logger.info("Mengambil data jadwal rilis")
+        jadwal_data = await get_jadwal_rilis_data()
+        if jadwal_data:
+            context['jadwal_rilis'] = jadwal_data
+            if isinstance(jadwal_data, dict):
+                logger.info(f"Berhasil mendapatkan jadwal rilis untuk {len(jadwal_data.keys())} hari")
+            else:
+                logger.info(f"Berhasil mendapatkan jadwal rilis")
+    except Exception as e:
+        logger.error(f"Error saat mengambil data jadwal rilis: {e}")
+    
+    # Ambil data anime mingguan
+    try:
+        logger.info("Mengambil data anime mingguan")
+        anime_mingguan = await get_anime_mingguan_data()
+        if anime_mingguan:
+            context['anime_mingguan'] = anime_mingguan
+            logger.info(f"Berhasil mendapatkan {len(anime_mingguan)} anime mingguan")
+    except Exception as e:
+        logger.error(f"Error saat mengambil data anime mingguan: {e}")
+    
+    # Periksa apakah berhasil mendapatkan data
+    if context['anime_terbaru'] or context['movie'] or context['anime_mingguan'] or context['jadwal_rilis']:
+        logger.info("Berhasil mendapatkan beberapa data dari API fallback")
+    else:
+        logger.warning("Gagal mendapatkan data dari semua API")
+        context['error'] = "Terjadi kesalahan saat memuat data. Silakan coba lagi nanti."
 
 # Fungsi untuk mendapatkan detail anime dengan caching
 @async_cache(ttl=60*60*24, prefix='anime_detail_')  # Cache selama 24 jam
@@ -191,6 +280,10 @@ async def index(request):
             if stale_cache:
                 logger.info("Menggunakan data cache lama untuk halaman utama")
                 return render(request, 'streamapp/index.html', context=stale_cache)
+            else:
+                # Jika tidak ada cache lama, coba ambil data untuk setiap bagian secara terpisah
+                logger.info("Mencoba mengambil data untuk setiap bagian secara terpisah")
+                await _fetch_individual_sections(context)
     except Exception as e:
         logger.error(f"Error saat mengambil data home: {e}")
         # Coba gunakan cache lama jika terjadi error
@@ -198,16 +291,17 @@ async def index(request):
         if stale_cache:
             logger.info("Menggunakan data cache lama untuk halaman utama")
             return render(request, 'streamapp/index.html', context=stale_cache)
-        
-        # Fallback ke data kosong jika tidak ada cache lama
-        context = {
-            'anime_terbaru': [],
-            'movie': [],
-            'anime_mingguan': [],
-            'jadwal_rilis': {},
-            'days_of_week': ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-            'error': f"Terjadi kesalahan saat memuat data: {e}"
-        }
+        else:
+            # Jika tidak ada cache lama, coba ambil data untuk setiap bagian secara terpisah
+            logger.info("Mencoba mengambil data untuk setiap bagian secara terpisah")
+            context = {
+                'anime_terbaru': [],
+                'movie': [],
+                'anime_mingguan': [],
+                'jadwal_rilis': {},
+                'days_of_week': ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            }
+            await _fetch_individual_sections(context)
     
     # Cache hasil untuk 15 menit
     # Gunakan versioning untuk memudahkan invalidasi cache
@@ -851,7 +945,8 @@ async def user_collection(request):
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
-from .tasks import get_api_status_summary, check_api_status
+from .tasks import get_api_status_summary
+from streamapp.tasks import check_api_status
 from .models import APIEndpoint, APIMonitor
 import json
 
@@ -899,7 +994,8 @@ class APIMonitorDashboardView(TemplateView):
         if action == 'check_api':
             try:
                 # Jalankan pemeriksaan API
-                check_api_status()
+                from streamapp.tasks import check_api_status
+                result = check_api_status()
                 return HttpResponse(json.dumps({'status': 'success', 'message': 'Pemeriksaan API berhasil dijalankan'}),
                                    content_type='application/json')
             except Exception as e:

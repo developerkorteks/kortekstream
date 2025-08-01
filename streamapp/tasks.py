@@ -2,6 +2,7 @@ import logging
 import time
 from django.utils import timezone
 from django.core.cache import cache
+from celery import shared_task
 
 from .models import APIEndpoint, APIMonitor
 
@@ -16,30 +17,40 @@ ENDPOINTS_TO_CHECK = [
     'search',
 ]
 
-def check_api_status():
+@shared_task(bind=True)
+def check_api_status(self=None):
     """
     Memeriksa status semua API endpoint yang aktif.
     Fungsi ini dapat dijalankan secara periodik melalui management command atau Celery.
+    
+    Args:
+        self: Parameter yang disediakan oleh Celery ketika tugas dijalankan sebagai task.
+              Jika None, berarti fungsi dipanggil secara langsung.
     """
-    logger.info("Memulai pemeriksaan status API...")
+    start_time = time.time()
+    task_id = getattr(self, 'request', {}).get('id', 'manual') if self else 'manual'
+    logger.info(f"[Task ID: {task_id}] Memulai pemeriksaan status API...")
     
     # Ambil semua endpoint API yang aktif
     endpoints = APIEndpoint.objects.filter(is_active=True).order_by('-priority')
     
     if not endpoints:
-        logger.warning("Tidak ada API endpoint yang aktif")
-        return
+        logger.warning(f"[Task ID: {task_id}] Tidak ada API endpoint yang aktif")
+        return False
     
-    logger.info(f"Memeriksa {len(endpoints)} API endpoint")
+    logger.info(f"[Task ID: {task_id}] Memeriksa {len(endpoints)} API endpoint")
+    
+    success_count = 0
+    error_count = 0
     
     # Periksa setiap endpoint
     for endpoint in endpoints:
-        logger.info(f"Memeriksa endpoint: {endpoint.name} ({endpoint.url})")
+        logger.info(f"[Task ID: {task_id}] Memeriksa endpoint: {endpoint.name} ({endpoint.url})")
         
         # Periksa setiap path
         for path in ENDPOINTS_TO_CHECK:
             try:
-                logger.info(f"Memeriksa path: {path}")
+                logger.info(f"[Task ID: {task_id}] Memeriksa path: {path}")
                 
                 # Gunakan metode check_endpoint dari model APIMonitor
                 # Jika path adalah 'search', tambahkan parameter query
@@ -51,28 +62,42 @@ def check_api_status():
                 else:
                     monitor = APIMonitor.check_endpoint(endpoint, path)
                 
-                logger.info(f"Status {endpoint.name}/{path}: {monitor.status}")
+                logger.info(f"[Task ID: {task_id}] Status {endpoint.name}/{path}: {monitor.status}")
                 
                 # Jika status down, catat di log
                 if monitor.status in ['down', 'error', 'timeout']:
-                    logger.warning(f"API {endpoint.name}/{path} {monitor.status}: {monitor.error_message}")
+                    logger.warning(f"[Task ID: {task_id}] API {endpoint.name}/{path} {monitor.status}: {monitor.error_message}")
+                    error_count += 1
+                else:
+                    success_count += 1
+                    logger.info(f"[Task ID: {task_id}] API {endpoint.name}/{path} berhasil diperiksa dengan status: {monitor.status}, response time: {monitor.response_time}ms")
                 
             except Exception as e:
-                logger.error(f"Error saat memeriksa {endpoint.name}/{path}: {e}")
+                logger.error(f"[Task ID: {task_id}] Error saat memeriksa {endpoint.name}/{path}: {e}")
+                error_count += 1
     
     # Hapus cache untuk memaksa refresh daftar endpoint
     cache.delete("api_endpoints")
     
-    logger.info("Pemeriksaan status API selesai")
-    return True
+    execution_time = time.time() - start_time
+    logger.info(f"[Task ID: {task_id}] Pemeriksaan status API selesai dalam {execution_time:.2f} detik. Sukses: {success_count}, Error: {error_count}")
+    
+    return success_count > 0 and error_count == 0
 
-def get_api_status_summary():
+@shared_task(bind=True)
+def get_api_status_summary(self=None):
     """
     Mendapatkan ringkasan status API untuk dashboard.
+    
+    Args:
+        self: Parameter yang disediakan oleh Celery ketika tugas dijalankan sebagai task.
+              Jika None, berarti fungsi dipanggil secara langsung.
     
     Returns:
         Dict berisi ringkasan status API
     """
+    task_id = getattr(self, 'request', {}).get('id', 'manual') if self else 'manual'
+    logger.info(f"[Task ID: {task_id}] Mendapatkan ringkasan status API...")
     try:
         # Ambil semua endpoint API yang aktif
         endpoints = APIEndpoint.objects.filter(is_active=True).order_by('-priority')
@@ -121,7 +146,7 @@ def get_api_status_summary():
         return summary
     
     except Exception as e:
-        logger.error(f"Error saat mendapatkan ringkasan status API: {e}")
+        logger.error(f"[Task ID: {task_id}] Error saat mendapatkan ringkasan status API: {e}")
         return {
             'error': str(e),
             'total_endpoints': 0,
@@ -129,3 +154,5 @@ def get_api_status_summary():
             'status_counts': {},
             'last_updated': timezone.now()
         }
+    
+    logger.info(f"[Task ID: {task_id}] Ringkasan status API berhasil diambil. Total endpoint: {summary['total_endpoints']}")

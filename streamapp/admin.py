@@ -19,6 +19,16 @@ class APIEndpointAdmin(admin.ModelAdmin):
             'fields': ('priority', 'is_active')
         }),
     )
+    
+    def get_deleted_objects(self, objs, request):
+        """
+        Override untuk menampilkan pesan yang lebih jelas tentang objek terkait yang akan dihapus.
+        """
+        deleted_objects, model_count, perms_needed, protected = super().get_deleted_objects(objs, request)
+        # Hapus perms_needed untuk APIMonitor
+        if 'APIMonitor' in perms_needed:
+            perms_needed.remove('APIMonitor')
+        return deleted_objects, model_count, perms_needed, protected
 
 class APIMonitorAdmin(admin.ModelAdmin):
     list_display = ('get_endpoint_name', 'endpoint_path', 'get_status_colored', 'get_response_time', 'last_checked')
@@ -52,7 +62,8 @@ class APIMonitorAdmin(admin.ModelAdmin):
         return False
     
     def has_delete_permission(self, request, obj=None):
-        return False
+        # Izinkan admin untuk menghapus APIMonitor
+        return request.user.is_superuser
 
 admin.site.register(APIMonitor, APIMonitorAdmin)
 

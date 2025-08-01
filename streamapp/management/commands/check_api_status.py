@@ -22,6 +22,10 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Memulai pemeriksaan status API pada {timezone.now()}"))
         
         try:
+            # Import fungsi check_api_status dari tasks.py
+            from streamapp.tasks import check_api_status
+            
+            # Jalankan check_api_status secara langsung
             result = check_api_status()
             
             if result:
