@@ -1,128 +1,134 @@
-
 {% extends 'streamapp/base.html' %}
 {% load static %}
 {% block title %}Koleksi Saya - KortekStream{% endblock %}
-
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Breadcrumb -->
-    <nav class="flex mb-6" aria-label="Breadcrumb">
-        <ol class="inline-flex items-center space-x-1 md:space-x-3 light-bg backdrop-blur-md px-4 py-2 rounded-lg light-border">
-            <li class="inline-flex items-center">
-                <a href="{% url 'streamapp:index' %}" class="inline-flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary-dark hover:text-primary">
-                    <i class="fas fa-home mr-2"></i>
-                    Beranda
-                </a>
-            </li>
-            <li aria-current="page">
-                <div class="flex items-center">
-                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
-                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Koleksi Saya</span>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Breadcrumb -->
+        <nav class="flex mb-6" aria-label="Breadcrumb">
+            <ol class="inline-flex items-center space-x-1 md:space-x-3 light-bg backdrop-blur-md px-4 py-2 rounded-lg light-border">
+                <li class="inline-flex items-center">
+                    <a href="{% url 'streamapp:index' %}"
+                       class="inline-flex items-center text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary-dark hover:text-primary">
+                        <i class="fas fa-home mr-2"></i>
+                        Beranda
+                    </a>
+                </li>
+                <li aria-current="page">
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Koleksi Saya</span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+        <!-- Tabs -->
+        <div class="mb-8">
+            <div class="border-b border-gray-200 dark:border-gray-700">
+                <ul class="flex flex-wrap -mb-px" id="collection-tabs" role="tablist">
+                    <li class="mr-2" role="presentation">
+                        <button class="inline-block py-4 px-4 text-sm font-medium text-center border-b-2 border-primary text-primary rounded-t-lg active"
+                                id="watchlist-tab"
+                                data-tabs-target="#watchlist"
+                                type="button"
+                                role="tab"
+                                aria-controls="watchlist"
+                                aria-selected="true">
+                            <i class="fas fa-bookmark mr-2"></i>Watchlist
+                        </button>
+                    </li>
+                    <li class="mr-2" role="presentation">
+                        <button class="inline-block py-4 px-4 text-sm font-medium text-center border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300 rounded-t-lg"
+                                id="favorites-tab"
+                                data-tabs-target="#favorites"
+                                type="button"
+                                role="tab"
+                                aria-controls="favorites"
+                                aria-selected="false">
+                            <i class="fas fa-heart mr-2"></i>Favorit
+                        </button>
+                    </li>
+                    <li role="presentation">
+                        <button class="inline-block py-4 px-4 text-sm font-medium text-center border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300 rounded-t-lg"
+                                id="history-tab"
+                                data-tabs-target="#history"
+                                type="button"
+                                role="tab"
+                                aria-controls="history"
+                                aria-selected="false">
+                            <i class="fas fa-history mr-2"></i>Riwayat Tontonan
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <!-- Tab Content -->
+        <div id="collection-content">
+            <!-- Watchlist Tab -->
+            <div class="block"
+                 id="watchlist"
+                 role="tabpanel"
+                 aria-labelledby="watchlist-tab">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold light-text">Watchlist Saya</h2>
+                    <button id="clear-watchlist"
+                            class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                        <i class="fas fa-trash-alt mr-2"></i>Hapus Semua
+                    </button>
                 </div>
-            </li>
-        </ol>
-    </nav>
-    
-    <!-- Tabs -->
-    <div class="mb-8">
-        <div class="border-b border-gray-200 dark:border-gray-700">
-            <ul class="flex flex-wrap -mb-px" id="collection-tabs" role="tablist">
-                <li class="mr-2" role="presentation">
-                    <button class="inline-block py-4 px-4 text-sm font-medium text-center border-b-2 border-primary text-primary rounded-t-lg active"
-                            id="watchlist-tab" 
-                            data-tabs-target="#watchlist" 
-                            type="button" 
-                            role="tab" 
-                            aria-controls="watchlist" 
-                            aria-selected="true">
-                        <i class="fas fa-bookmark mr-2"></i>Watchlist
+                <div id="watchlist-container"
+                     class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    <!-- Watchlist items will be loaded here by JavaScript -->
+                    <div class="text-center py-12 col-span-full text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
+                        <p>Memuat watchlist...</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Favorites Tab -->
+            <div class="hidden"
+                 id="favorites"
+                 role="tabpanel"
+                 aria-labelledby="favorites-tab">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold light-text">Anime Favorit</h2>
+                    <button id="clear-favorites"
+                            class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                        <i class="fas fa-trash-alt mr-2"></i>Hapus Semua
                     </button>
-                </li>
-                <li class="mr-2" role="presentation">
-                    <button class="inline-block py-4 px-4 text-sm font-medium text-center border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300 rounded-t-lg" 
-                            id="favorites-tab" 
-                            data-tabs-target="#favorites" 
-                            type="button" 
-                            role="tab" 
-                            aria-controls="favorites" 
-                            aria-selected="false">
-                        <i class="fas fa-heart mr-2"></i>Favorit
+                </div>
+                <div id="favorites-container"
+                     class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    <!-- Favorites items will be loaded here by JavaScript -->
+                    <div class="text-center py-12 col-span-full text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
+                        <p>Memuat favorit...</p>
+                    </div>
+                </div>
+            </div>
+            <!-- History Tab -->
+            <div class="hidden"
+                 id="history"
+                 role="tabpanel"
+                 aria-labelledby="history-tab">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold light-text">Riwayat Tontonan</h2>
+                    <button id="clear-history"
+                            class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                        <i class="fas fa-trash-alt mr-2"></i>Hapus Semua
                     </button>
-                </li>
-                <li role="presentation">
-                    <button class="inline-block py-4 px-4 text-sm font-medium text-center border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300 rounded-t-lg" 
-                            id="history-tab" 
-                            data-tabs-target="#history" 
-                            type="button" 
-                            role="tab" 
-                            aria-controls="history" 
-                            aria-selected="false">
-                        <i class="fas fa-history mr-2"></i>Riwayat Tontonan
-                    </button>
-                </li>
-            </ul>
+                </div>
+                <div id="history-container"
+                     class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    <!-- History items will be loaded here by JavaScript -->
+                    <div class="text-center py-12 col-span-full text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
+                        <p>Memuat riwayat tontonan...</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <!-- Tab Content -->
-    <div id="collection-content">
-        <!-- Watchlist Tab -->
-        <div class="block" id="watchlist" role="tabpanel" aria-labelledby="watchlist-tab">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold light-text">Watchlist Saya</h2>
-                <button id="clear-watchlist" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                    <i class="fas fa-trash-alt mr-2"></i>Hapus Semua
-                </button>
-            </div>
-            
-            <div id="watchlist-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                <!-- Watchlist items will be loaded here by JavaScript -->
-                <div class="text-center py-12 col-span-full text-gray-500 dark:text-gray-400">
-                    <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
-                    <p>Memuat watchlist...</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Favorites Tab -->
-        <div class="hidden" id="favorites" role="tabpanel" aria-labelledby="favorites-tab">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold light-text">Anime Favorit</h2>
-                <button id="clear-favorites" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                    <i class="fas fa-trash-alt mr-2"></i>Hapus Semua
-                </button>
-            </div>
-            
-            <div id="favorites-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                <!-- Favorites items will be loaded here by JavaScript -->
-                <div class="text-center py-12 col-span-full text-gray-500 dark:text-gray-400">
-                    <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
-                    <p>Memuat favorit...</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- History Tab -->
-        <div class="hidden" id="history" role="tabpanel" aria-labelledby="history-tab">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold light-text">Riwayat Tontonan</h2>
-                <button id="clear-history" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                    <i class="fas fa-trash-alt mr-2"></i>Hapus Semua
-                </button>
-            </div>
-            
-            <div id="history-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                <!-- History items will be loaded here by JavaScript -->
-                <div class="text-center py-12 col-span-full text-gray-500 dark:text-gray-400">
-                    <i class="fas fa-spinner fa-spin text-3xl mb-4"></i>
-                    <p>Memuat riwayat tontonan...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
+    <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Tab functionality
         const tabButtons = document.querySelectorAll('[data-tabs-target]');
@@ -206,8 +212,7 @@
             
             html += `
                 <div class="anime-card dynamic-border light-bg rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 light-border">
-                    <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block"
-                       onclick="console.log('Navigasi watchlist ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
+                    <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block" onclick="console.log('Navigasi watchlist ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
                         <div class="relative pb-[140%] overflow-hidden">
                             <img src="${coverUrl}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='{% static 'img/kortekstream-logo.png' %}'; console.log('Gambar sampul gagal dimuat, menggunakan default:', this.alt);">
                             
@@ -291,8 +296,7 @@
             
             html += `
                 <div class="anime-card dynamic-border light-bg rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 light-border">
-                    <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block"
-                       onclick="console.log('Navigasi favorit ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
+                    <a href="${item.slug.includes('/anime/') ? item.slug : `/anime/${item.slug}`}" class="block" onclick="console.log('Navigasi favorit ke: ' + (this.href || window.location.origin + (item.slug.includes('/anime/') ? item.slug : '/anime/' + item.slug)))">
                         <div class="relative pb-[140%] overflow-hidden">
                             <img src="${coverUrl}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='{% static 'img/kortekstream-logo.png' %}'; console.log('Gambar sampul gagal dimuat, menggunakan default:', this.alt);">
                             
@@ -456,8 +460,7 @@
             
             html += `
                 <div class="anime-card dynamic-border light-bg rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 light-border">
-                    <a href="/episode/${item.episodeSlug}" class="block"
-                       onclick="console.log('Navigasi riwayat ke episode: ' + (this.href || window.location.origin + '/episode/' + item.episodeSlug))">
+                    <a href="/episode/${item.episodeSlug}" class="block" onclick="console.log('Navigasi riwayat ke episode: ' + (this.href || window.location.origin + '/episode/' + item.episodeSlug))">
                         <div class="relative pb-[140%] overflow-hidden">
                             <img src="${coverUrl}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='{% static 'img/kortekstream-logo.png' %}'; console.log('Gambar sampul gagal dimuat, menggunakan default:', this.alt);">
                             
@@ -572,9 +575,8 @@
             }, 500);
         }, 3000);
     }
-</script>
-
-<style>
+    </script>
+    <style>
     @keyframes fadeInUp {
         from {
             opacity: 0;
@@ -602,10 +604,9 @@
     .animate-fade-out {
         animation: fadeOut 0.5s ease-out forwards;
     }
-</style>
-
-<!-- Script untuk verifikasi link riwayat tontonan, watchlist, dan favorit -->
-<script>
+    </style>
+    <!-- Script untuk verifikasi link riwayat tontonan, watchlist, dan favorit -->
+    <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Fungsi untuk memverifikasi link di container
         function verifyLinks(containerId, containerName) {
@@ -665,5 +666,5 @@
         verifyLinks('watchlist-container', 'watchlist');
         verifyLinks('favorites-container', 'favorit');
     });
-</script>
+    </script>
 {% endblock %}

@@ -121,6 +121,8 @@ def get_api_status_summary(self=None):
                 'name': endpoint.name,
                 'url': endpoint.url,
                 'priority': endpoint.priority,
+                'last_used': endpoint.last_used,
+                'success_count': endpoint.success_count,
                 'paths': []
             }
             

@@ -1,10 +1,16 @@
-
 {% extends 'streamapp/base.html' %}
 {% load static %}
-{% block title %}{% if episode.title %}{{ episode.title }}{% else %}Detail Episode{% endif %} - KortekStream{% endblock %}
-
+{% load streamapp_filters %}
+{% block title %}
+    {% if episode.title %}
+        {{ episode.title }}
+    {% else %}
+        Detail Episode
+    {% endif %}
+    - KortekStream
+{% endblock %}
 {% block extra_css %}
-<style>
+    <style>
     /* Styling khusus untuk player video */
     .video-container {
         position: relative;
@@ -65,12 +71,11 @@
         -webkit-animation: spinner 1.5s linear infinite;
         animation: spinner 1.5s linear infinite;
     }
-</style>
+    </style>
 {% endblock %}
-
 {% block extra_head %}
-<!-- VideoObject Structured Data untuk SEO -->
-<script type="application/ld+json">
+    <!-- VideoObject Structured Data untuk SEO -->
+    <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "VideoObject",
@@ -86,352 +91,391 @@
     "target": "{{ request.build_absolute_uri }}"
   }
 }
-</script>
+    </script>
 {% endblock %}
-
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Breadcrumb -->
-    <nav class="flex mb-6" aria-label="Breadcrumb">
-        <ol class="inline-flex items-center space-x-1 md:space-x-3 light-bg backdrop-blur-md px-4 py-2 rounded-lg light-border">
-            <li class="inline-flex items-center">
-                <a href="{% url 'streamapp:index' %}" class="inline-flex items-center text-sm font-medium light-text hover:text-primary transition-colors">
-                    <i class="fas fa-home mr-2"></i>
-                    Beranda
-                </a>
-            </li>
-            {% if episode.navigation.all_episodes_url %}
-                {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
-                    <li>
-                        <div class="flex items-center">
-                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
-                            <a href="{% url 'streamapp:detail_anime' anime_slug %}" class="text-sm font-medium light-text hover:text-primary transition-colors">
-                                Anime
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Breadcrumb -->
+        <nav class="flex mb-6" aria-label="Breadcrumb">
+            <ol class="inline-flex items-center space-x-1 md:space-x-3 light-bg backdrop-blur-md px-4 py-2 rounded-lg light-border">
+                <li class="inline-flex items-center">
+                    <a href="{% url 'streamapp:index' %}"
+                       class="inline-flex items-center text-sm font-medium light-text hover:text-primary transition-colors">
+                        <i class="fas fa-home mr-2"></i>
+                        Beranda
+                    </a>
+                </li>
+                {% if episode.navigation.all_episodes_url %}
+                    {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
+                        <li>
+                            <div class="flex items-center">
+                                <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                                <a href="{% url 'streamapp:detail_anime' anime_slug %}"
+                                   class="text-sm font-medium light-text hover:text-primary transition-colors">
+                                    Anime
+                                </a>
+                            </div>
+                        </li>
+                    {% endwith %}
+                {% endif %}
+                <li aria-current="page">
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                        <span class="text-sm font-medium light-text opacity-80">
+                            {% if episode.title %}
+                                {{ episode.title }}
+                            {% else %}
+                                Detail Episode
+                            {% endif %}
+                        </span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+        {% if error %}
+            <div class="light-bg backdrop-blur-md border border-red-500/50 text-red-300 px-4 py-3 rounded-xl mb-8">
+                <p>{{ error }}</p>
+            </div>
+        {% elif episode %}
+            <!-- Episode Header -->
+            <div class="light-bg backdrop-blur-md rounded-xl shadow-lg p-6 mb-6 light-border">
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold light-text mb-2">{{ episode.title }}</h1>
+                        <div class="text-sm light-text opacity-70 mb-4">Dirilis: {{ episode.release_info }}</div>
+                    </div>
+                    <!-- User Action Buttons -->
+                    <div class="flex space-x-2 mb-4 md:mb-0">
+                        {% if episode.navigation.all_episodes_url %}
+                            {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
+                                <button id="favorite-btn"
+                                        onclick="toggleFavorite('{{ episode.title|escapejs }}', '{{ anime_slug|escapejs }}', '{{ episode.other_episodes.0.thumbnail_url|default:''|escapejs }}')"
+                                        class="flex items-center px-4 py-2 light-bg backdrop-blur-sm light-text rounded-lg hover:bg-black/70 transition-colors">
+                                    <i id="favorite-icon" class="far fa-heart mr-2"></i>
+                                    <span id="favorite-text">Favorit</span>
+                                </button>
+                                <button id="watchlist-btn"
+                                        onclick="toggleWatchlist('{{ episode.title|escapejs }}', '{{ anime_slug|escapejs }}', '{{ episode.other_episodes.0.thumbnail_url|default:''|escapejs }}')"
+                                        class="flex items-center px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
+                                    <i id="watchlist-icon" class="fas fa-bookmark mr-2"></i>
+                                    <span id="watchlist-text">Tambah ke Watchlist</span>
+                                </button>
+                            {% endwith %}
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- Navigation Buttons -->
+                <div class="flex flex-wrap gap-3 mb-4">
+                    {% if episode.navigation.previous_episode_url %}
+                        {% with prev_slug=episode.navigation.previous_episode_url|cut:"https://v1.samehadaku.how/"|cut:"/" %}
+                            <a href="{% url 'streamapp:detail_episode_video' prev_slug %}"
+                               class="px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
+                                <i class="fas fa-chevron-left mr-1"></i> Episode Sebelumnya
                             </a>
-                        </div>
-                    </li>
-                {% endwith %}
-            {% endif %}
-            <li aria-current="page">
-                <div class="flex items-center">
-                    <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
-                    <span class="text-sm font-medium light-text opacity-80">{% if episode.title %}{{ episode.title }}{% else %}Detail Episode{% endif %}</span>
-                </div>
-            </li>
-        </ol>
-    </nav>
-    
-    {% if error %}
-        <div class="light-bg backdrop-blur-md border border-red-500/50 text-red-300 px-4 py-3 rounded-xl mb-8">
-            <p>{{ error }}</p>
-        </div>
-    {% elif episode %}
-        <!-- Episode Header -->
-        <div class="light-bg backdrop-blur-md rounded-xl shadow-lg p-6 mb-6 light-border">
-            <div class="flex flex-col md:flex-row md:items-start md:justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold light-text mb-2">{{ episode.title }}</h1>
-                    <div class="text-sm light-text opacity-70 mb-4">Dirilis: {{ episode.release_info }}</div>
-                </div>
-                
-                <!-- User Action Buttons -->
-                <div class="flex space-x-2 mb-4 md:mb-0">
+                        {% endwith %}
+                    {% else %}
+                        <span class="px-4 py-2 bg-black/20 backdrop-blur-md border border-gray-700/30 text-gray-400 rounded-lg cursor-not-allowed">
+                            <i class="fas fa-chevron-left mr-1"></i> Episode Sebelumnya
+                        </span>
+                    {% endif %}
                     {% if episode.navigation.all_episodes_url %}
                         {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
-                            <button id="favorite-btn" onclick="toggleFavorite('{{ episode.title|escapejs }}', '{{ anime_slug|escapejs }}', '{{ episode.other_episodes.0.thumbnail_url|default:''|escapejs }}')" class="flex items-center px-4 py-2 light-bg backdrop-blur-sm light-text rounded-lg hover:bg-black/70 transition-colors">
-                                <i id="favorite-icon" class="far fa-heart mr-2"></i>
-                                <span id="favorite-text">Favorit</span>
-                            </button>
-                            
-                            <button id="watchlist-btn" onclick="toggleWatchlist('{{ episode.title|escapejs }}', '{{ anime_slug|escapejs }}', '{{ episode.other_episodes.0.thumbnail_url|default:''|escapejs }}')" class="flex items-center px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
-                                <i id="watchlist-icon" class="fas fa-bookmark mr-2"></i>
-                                <span id="watchlist-text">Tambah ke Watchlist</span>
-                            </button>
+                            <a href="{% url 'streamapp:detail_anime' anime_slug %}"
+                               class="px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
+                                <i class="fas fa-list mr-1"></i> Semua Episode
+                            </a>
                         {% endwith %}
+                    {% endif %}
+                    {% if episode.navigation.next_episode_url %}
+                        {% with next_slug=episode.navigation.next_episode_url|cut:"https://v1.samehadaku.how/"|cut:"/" %}
+                            <a href="{% url 'streamapp:detail_episode_video' next_slug %}"
+                               class="px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
+                                Episode Selanjutnya <i class="fas fa-chevron-right ml-1"></i>
+                            </a>
+                        {% endwith %}
+                    {% else %}
+                        <span class="px-4 py-2 bg-black/20 backdrop-blur-md border border-gray-700/30 text-gray-400 rounded-lg cursor-not-allowed">
+                            Episode Selanjutnya <i class="fas fa-chevron-right ml-1"></i>
+                        </span>
                     {% endif %}
                 </div>
             </div>
-            
-            <!-- Navigation Buttons -->
-            <div class="flex flex-wrap gap-3 mb-4">
-                {% if episode.navigation.previous_episode_url %}
-                    {% with prev_slug=episode.navigation.previous_episode_url|cut:"https://v1.samehadaku.how/"|cut:"/" %}
-                        <a href="{% url 'streamapp:detail_episode_video' prev_slug %}" class="px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
-                            <i class="fas fa-chevron-left mr-1"></i> Episode Sebelumnya
-                        </a>
-                    {% endwith %}
-                {% else %}
-                    <span class="px-4 py-2 bg-black/20 backdrop-blur-md border border-gray-700/30 text-gray-400 rounded-lg cursor-not-allowed">
-                        <i class="fas fa-chevron-left mr-1"></i> Episode Sebelumnya
-                    </span>
-                {% endif %}
-                
-                {% if episode.navigation.all_episodes_url %}
-                    {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
-                        <a href="{% url 'streamapp:detail_anime' anime_slug %}" class="px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
-                            <i class="fas fa-list mr-1"></i> Semua Episode
-                        </a>
-                    {% endwith %}
-                {% endif %}
-                
-                {% if episode.navigation.next_episode_url %}
-                    {% with next_slug=episode.navigation.next_episode_url|cut:"https://v1.samehadaku.how/"|cut:"/" %}
-                        <a href="{% url 'streamapp:detail_episode_video' next_slug %}" class="px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
-                            Episode Selanjutnya <i class="fas fa-chevron-right ml-1"></i>
-                        </a>
-                    {% endwith %}
-                {% else %}
-                    <span class="px-4 py-2 bg-black/20 backdrop-blur-md border border-gray-700/30 text-gray-400 rounded-lg cursor-not-allowed">
-                        Episode Selanjutnya <i class="fas fa-chevron-right ml-1"></i>
-                    </span>
-                {% endif %}
-            </div>
-        </div>
-        
-        <!-- Iklan di atas player video -->
-        {% if ads.above_player %}
-        <div class="ad-container mb-4" style="{% if ads.above_player.max_width %}max-width: {{ ads.above_player.max_width }} !important;{% else %}max-width: 100%;{% endif %} margin: 0 auto;">
-            <div class="text-xs text-gray-400 text-center mb-1">Iklan</div>
-            <div class="ad-content light-bg backdrop-blur-sm rounded-lg p-2" style="{% if ads.above_player.max_height %}max-height: {{ ads.above_player.max_height }} !important; overflow-y: auto;{% endif %}">
-                {{ ads.above_player.ad_code|safe }}
-            </div>
-        </div>
-        {% else %}
-        <!-- Debug info: Tidak ada iklan untuk posisi above_player -->
-        <div class="text-xs text-gray-400 text-center mb-1" style="display: none;">Debug: Tidak ada iklan untuk posisi above_player</div>
-        {% endif %}
-        
-        <!-- Video Player -->
-        <div class="light-bg backdrop-blur-md rounded-xl shadow-lg p-6 mb-8 light-border">
-            <div class="video-container mb-6 rounded-lg overflow-hidden" id="player-frame">
-                {% if episode.streaming_servers %}
-                    <!-- Default server akan dipilih oleh JavaScript -->
-                    <div class="flex justify-center items-center h-full flex-col bg-black/70 text-white">
-                        <p>Silakan pilih server streaming di bawah ini.</p>
-                    </div>
-                {% else %}
-                    <div class="flex justify-center items-center h-full flex-col bg-black/70 text-white">
-                        <p>Tidak ada server streaming yang tersedia.</p>
-                    </div>
-                {% endif %}
-            </div>
-            
-            {% if episode.streaming_servers %}
-                <div class="mb-4">
-                    <div class="relative">
-                        <select id="server-select" class="w-full px-4 py-3 light-bg backdrop-blur-sm light-text rounded-lg light-border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-base font-medium">
-                            <option value="" disabled selected>Pilih Server Streaming</option>
-                            {% for server in episode.streaming_servers %}
-                                {% if "Nakama" in server.server_name %}
-                                    <option value="{{ server.streaming_url }}" data-server-type="nakama" class="py-2">{{ server.server_name }}</option>
-                                {% elif "Pucuk" in server.server_name %}
-                                    <option value="{{ server.streaming_url }}" data-server-type="pucuk" class="py-2">{{ server.server_name }}</option>
-                                {% elif "Premium" in server.server_name %}
-                                    <option value="{{ server.streaming_url }}" data-server-type="premium" class="py-2">{{ server.server_name }}</option>
-                                {% elif "Mega" in server.server_name %}
-                                    <option value="{{ server.streaming_url }}" data-server-type="mega" class="py-2">{{ server.server_name }}</option>
-                                {% elif "Blogspot" in server.server_name %}
-                                    <option value="{{ server.streaming_url }}" data-server-type="blogspot" class="py-2">{{ server.server_name }}</option>
-                                {% else %}
-                                    <option value="{{ server.streaming_url }}" data-server-type="other" class="py-2">{{ server.server_name }}</option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                            <div class="bg-primary/20 rounded-full w-8 h-8 flex items-center justify-center">
-                                <i class="fas fa-chevron-down text-primary text-lg"></i>
-                            </div>
-                        </div>
-                    </div>
+            <!-- Iklan di atas player video -->
+            {% if ads.above_player %}
+                <div class="ad-container mb-4"
+                     style="{% if ads.above_player.max_width %}max-width: {{ ads.above_player.max_width }} !important;
+                            {% else %}max-width: 100%;
+                            {% endif %} margin: 0 auto">
+                    <div class="text-xs text-gray-400 text-center mb-1">Iklan</div>
+                    <div class="ad-content light-bg backdrop-blur-sm rounded-lg p-2"
+                         style="{% if ads.above_player.max_height %}max-height: {{ ads.above_player.max_height }} !important;
+                                overflow-y: auto;
+                                {% endif %}">{{ ads.above_player.ad_code|safe }}</div>
                 </div>
-                
-                <!-- Peringatan untuk video error -->
-                <div class="mt-2 p-3 light-bg backdrop-blur-sm rounded-lg light-border flex items-center">
-                    <div class="text-yellow-400 mr-2">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                    <p class="text-sm light-text">
-                        <span class="font-medium">Video error?</span> Coba ganti server lain. Jika masih error, refresh halaman dan pilih server berbeda.
-                    </p>
+            {% else %}
+                <!-- Debug info: Tidak ada iklan untuk posisi above_player -->
+                <div class="text-xs text-gray-400 text-center mb-1" style="display: none;">
+                    Debug: Tidak ada iklan untuk posisi above_player
                 </div>
             {% endif %}
-        </div>
-        
-        <!-- Iklan di bawah player video -->
-        {% if ads.below_player %}
-        <div class="ad-container mb-8" style="{% if ads.below_player.max_width %}max-width: {{ ads.below_player.max_width }} !important;{% else %}max-width: 100%;{% endif %} margin: 0 auto;">
-            <div class="text-xs text-gray-400 text-center mb-1">Iklan</div>
-            <div class="ad-content light-bg backdrop-blur-sm rounded-lg p-2" style="{% if ads.below_player.max_height %}max-height: {{ ads.below_player.max_height }} !important; overflow-y: auto;{% endif %}">
-                {{ ads.below_player.ad_code|safe }}
-            </div>
-        </div>
-        {% endif %}
-        
-        <!-- Anime Info -->
-        {% if episode.anime_info %}
+            <!-- Video Player -->
             <div class="light-bg backdrop-blur-md rounded-xl shadow-lg p-6 mb-8 light-border">
-                <h2 class="text-xl font-bold light-text mb-4 pb-2 border-b ">Informasi Anime</h2>
-                <h3 class="text-lg font-semibold light-text mb-2">{{ episode.anime_info.title }}</h3>
-                
-                <!-- Sinopsis dengan Show More/Less -->
-                <div class="relative">
-                    <div id="synopsis-container" class="light-text mb-4 overflow-hidden transition-all duration-300" style="max-height: 100px;">
-                        <p>{{ episode.anime_info.synopsis }}</p>
-                    </div>
-                    <div id="synopsis-gradient" class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/40 to-transparent"></div>
-                    <button id="synopsis-toggle" class="text-primary hover:text-primary/80 text-sm font-medium transition-colors px-3 py-1 rounded-md bg-primary/10 hover:bg-primary/20 cursor-pointer z-10 relative">
-                        Baca Selengkapnya
-                    </button>
-                </div>
-                
-                {% if episode.anime_info.genres %}
-                    <div class="flex flex-wrap gap-2 mt-4">
-                        {% for genre in episode.anime_info.genres %}
-                            <span class="bg-primary/40 backdrop-blur-sm text-white px-2 py-1 rounded-md text-sm">{{ genre }}</span>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-                <!-- Iklan di antara informasi anime -->
-                {% if ads.between_info %}
-                <div class="ad-container my-4" style="{% if ads.between_info.max_width %}max-width: {{ ads.between_info.max_width }} !important;{% else %}max-width: 100%;{% endif %} margin: 0 auto;">
-                    <div class="text-xs text-gray-400 text-center mb-1">Iklan</div>
-                    <div class="ad-content light-bg backdrop-blur-sm rounded-lg p-2" style="{% if ads.between_info.max_height %}max-height: {{ ads.between_info.max_height }} !important; overflow-y: auto;{% endif %}">
-                        {{ ads.between_info.ad_code|safe }}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-        {% endif %}
-        
-        <!-- Other Episodes -->
-        {% if episode.other_episodes %}
-            <div class="light-bg backdrop-blur-md rounded-xl shadow-lg p-6 mb-8 light-border">
-                <h2 class="text-xl font-bold light-text mb-4 pb-2 border-b ">Episode Lainnya</h2>
-                
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {% for ep in episode.other_episodes %}
-                        <div class="anime-card dynamic-border group relative rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
-                            {% with ep_slug=ep.url|cut:"https://v1.samehadaku.how/"|cut:"/" %}
-                                <a href="{% url 'streamapp:detail_episode_video' ep_slug %}" class="block">
-                                    <!-- Card Background with Blur Effect -->
-                                    <div class="absolute inset-0 bg-black/20 backdrop-blur-md rounded-xl z-0"></div>
-                                    
-                                    <!-- Image Container -->
-                                    <div class="relative pb-[56.25%] overflow-hidden z-10">
-                                        <!-- Image with Gradient Overlay -->
-                                        <div class="absolute inset-0 w-full h-full">
-                                            <img src="{{ ep.thumbnail_url }}" alt="{{ ep.title }}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" width="240" height="135" decoding="async">
-                                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                                        </div>
-                                        
-                                        <!-- Play Button (Visible on Hover) -->
-                                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-                                            <div class="w-12 h-12 rounded-full bg-primary/80 flex items-center justify-center">
-                                                <i class="fas fa-play text-white"></i>
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Content Overlay at Bottom -->
-                                        <div class="absolute bottom-0 left-0 right-0 p-3 z-20">
-                                            <h3 class="title text-sm font-semibold text-white mb-1 line-clamp-2">{{ ep.title }}</h3>
-                                            <div class="text-xs text-gray-300">{{ ep.release_date }}</div>
-                                        </div>
-                                    </div>
-                                </a>
-                            {% endwith %}
+                <div class="video-container mb-6 rounded-lg overflow-hidden"
+                     id="player-frame">
+                    {% if episode.streaming_servers %}
+                        <!-- Default server akan dipilih oleh JavaScript -->
+                        <div class="flex justify-center items-center h-full flex-col bg-black/70 text-white">
+                            <p>Silakan pilih server streaming di bawah ini.</p>
                         </div>
-                    {% endfor %}
+                    {% else %}
+                        <div class="flex justify-center items-center h-full flex-col bg-black/70 text-white">
+                            <p>Tidak ada server streaming yang tersedia.</p>
+                        </div>
+                    {% endif %}
                 </div>
-            </div>
-        {% endif %}
-        
-        <!-- Iklan di atas download links -->
-        {% if ads.above_download %}
-        <div class="ad-container mb-8" style="{% if ads.above_download.max_width %}max-width: {{ ads.above_download.max_width }} !important;{% else %}max-width: 100%;{% endif %} margin: 0 auto;">
-            <div class="text-xs text-gray-400 text-center mb-1">Iklan</div>
-            <div class="ad-content light-bg backdrop-blur-sm rounded-lg p-2" style="{% if ads.above_download.max_height %}max-height: {{ ads.above_download.max_height }} !important; overflow-y: auto;{% endif %}">
-                {{ ads.above_download.ad_code|safe }}
-            </div>
-        </div>
-        {% endif %}
-        
-        <!-- Download Links -->
-        {% if episode.download_links %}
-            <div class="light-bg backdrop-blur-md rounded-xl shadow-lg p-6 mb-8 light-border">
-                <h2 class="text-xl font-bold light-text mb-4 pb-2 border-b">Download Links</h2>
-                
-                <div class="space-y-4">
-                    {% for format_type, resolutions in episode.download_links.items %}
-                        <div class="download-format-container">
-                            <!-- Format Type Dropdown Toggle -->
-                            <button class="format-toggle w-full flex justify-between items-center py-2 px-4 light-bg backdrop-blur-sm light-text rounded-lg hover:bg-primary/20 transition-colors light-border mb-2"
-                                    data-format="{{ format_type|slugify }}">
-                                <span class="text-lg font-semibold">{{ format_type }}</span>
-                                <i class="fas fa-chevron-down text-primary transition-transform duration-300"></i>
-                            </button>
-                            
-                            <!-- Format Content (Hidden by default) -->
-                            <div class="format-content hidden pl-4 space-y-3" id="format-{{ format_type|slugify }}">
-                                {% for resolution, providers in resolutions.items %}
-                                    <div class="resolution-container">
-                                        <!-- Resolution Toggle -->
-                                        <button class="resolution-toggle w-full flex justify-between items-center py-1 px-3 light-bg backdrop-blur-sm light-text rounded-lg hover:bg-primary/10 transition-colors light-border mb-1"
-                                                data-resolution="{{ resolution|slugify }}-{{ format_type|slugify }}">
-                                            <span class="font-medium">{{ resolution }}</span>
-                                            <i class="fas fa-chevron-down text-primary transition-transform duration-300"></i>
-                                        </button>
-                                        
-                                        <!-- Providers (Hidden by default) -->
-                                        <div class="providers-container hidden pl-3 pt-1 pb-2" id="resolution-{{ resolution|slugify }}-{{ format_type|slugify }}">
-                                            <div class="flex flex-wrap gap-2">
-                                                {% for provider in providers %}
-                                                    <a href="{{ provider.url }}" class="px-3 py-1 bg-primary/80 backdrop-blur-sm text-white text-sm rounded-lg hover:bg-primary transition-colors border border-primary/30" target="_blank">
-                                                        {{ provider.provider }}
-                                                    </a>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
-                                    </div>
+                {% if episode.streaming_servers %}
+                    <div class="mb-4">
+                        <div class="relative">
+                            <select id="server-select"
+                                    class="w-full px-4 py-3 light-bg backdrop-blur-sm light-text rounded-lg light-border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-base font-medium">
+                                <option value="" disabled selected>Pilih Server Streaming</option>
+                                {% for server in episode.streaming_servers %}
+                                    {% if "Nakama" in server.server_name %}
+                                        <option value="{{ server.streaming_url }}"
+                                                data-server-type="nakama"
+                                                class="py-2">{{ server.server_name }}</option>
+                                    {% elif "Pucuk" in server.server_name %}
+                                        <option value="{{ server.streaming_url }}"
+                                                data-server-type="pucuk"
+                                                class="py-2">{{ server.server_name }}</option>
+                                    {% elif "Premium" in server.server_name %}
+                                        <option value="{{ server.streaming_url }}"
+                                                data-server-type="premium"
+                                                class="py-2">{{ server.server_name }}</option>
+                                    {% elif "Mega" in server.server_name %}
+                                        <option value="{{ server.streaming_url }}"
+                                                data-server-type="mega"
+                                                class="py-2">{{ server.server_name }}</option>
+                                    {% elif "Blogspot" in server.server_name %}
+                                        <option value="{{ server.streaming_url }}"
+                                                data-server-type="blogspot"
+                                                class="py-2">{{ server.server_name }}</option>
+                                    {% else %}
+                                        <option value="{{ server.streaming_url }}"
+                                                data-server-type="other"
+                                                class="py-2">{{ server.server_name }}</option>
+                                    {% endif %}
                                 {% endfor %}
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
+                                <div class="bg-primary/20 rounded-full w-8 h-8 flex items-center justify-center">
+                                    <i class="fas fa-chevron-down text-primary text-lg"></i>
+                                </div>
                             </div>
                         </div>
-                    {% endfor %}
-                </div>
-                
-                <!-- Iklan di antara download links -->
-                {% if ads.between_download %}
-                <div class="ad-container my-4" style="{% if ads.between_download.max_width %}max-width: {{ ads.between_download.max_width }} !important;{% else %}max-width: 100%;{% endif %} margin: 0 auto;">
-                    <div class="text-xs text-gray-400 text-center mb-1">Iklan</div>
-                    <div class="ad-content light-bg backdrop-blur-sm rounded-lg p-2" style="{% if ads.between_download.max_height %}max-height: {{ ads.between_download.max_height }} !important; overflow-y: auto;{% endif %}">
-                        {{ ads.between_download.ad_code|safe }}
                     </div>
-                </div>
+                    <!-- Peringatan untuk video error -->
+                    <div class="mt-2 p-3 light-bg backdrop-blur-sm rounded-lg light-border flex items-center">
+                        <div class="text-yellow-400 mr-2">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <p class="text-sm light-text">
+                            <span class="font-medium">Video error?</span> Coba ganti server lain. Jika masih error, refresh halaman dan pilih server berbeda.
+                        </p>
+                    </div>
                 {% endif %}
             </div>
-        {% endif %}
-        
-        <!-- Iklan di footer -->
-        {% if ads.footer %}
-        <div class="ad-container mb-8" style="{% if ads.footer.max_width %}max-width: {{ ads.footer.max_width }} !important;{% else %}max-width: 100%;{% endif %} margin: 0 auto;">
-            <div class="text-xs text-gray-400 text-center mb-1">Iklan</div>
-            <div class="ad-content light-bg backdrop-blur-sm rounded-lg p-2" style="{% if ads.footer.max_height %}max-height: {{ ads.footer.max_height }} !important; overflow-y: auto;{% endif %}">
-                {{ ads.footer.ad_code|safe }}
+            <!-- Iklan di bawah player video -->
+            {% if ads.below_player %}
+                <div class="ad-container mb-8"
+                     style="{% if ads.below_player.max_width %}max-width: {{ ads.below_player.max_width }} !important;
+                            {% else %}max-width: 100%;
+                            {% endif %} margin: 0 auto">
+                    <div class="text-xs text-gray-400 text-center mb-1">Iklan</div>
+                    <div class="ad-content light-bg backdrop-blur-sm rounded-lg p-2"
+                         style="{% if ads.below_player.max_height %}max-height: {{ ads.below_player.max_height }} !important;
+                                overflow-y: auto;
+                                {% endif %}">{{ ads.below_player.ad_code|safe }}</div>
+                </div>
+            {% endif %}
+            <!-- Anime Info -->
+            {% if episode.anime_info %}
+                <div class="light-bg backdrop-blur-md rounded-xl shadow-lg p-6 mb-8 light-border">
+                    <h2 class="text-xl font-bold light-text mb-4 pb-2 border-b ">Informasi Anime</h2>
+                    <h3 class="text-lg font-semibold light-text mb-2">{{ episode.anime_info.title }}</h3>
+                    <!-- Sinopsis dengan Show More/Less -->
+                    <div class="relative">
+                        <div id="synopsis-container"
+                             class="light-text mb-4 overflow-hidden transition-all duration-300"
+                             style="max-height: 100px">
+                            <p>{{ episode.anime_info.synopsis }}</p>
+                        </div>
+                        <div id="synopsis-gradient"
+                             class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/40 to-transparent">
+                        </div>
+                        <button id="synopsis-toggle"
+                                class="text-primary hover:text-primary/80 text-sm font-medium transition-colors px-3 py-1 rounded-md bg-primary/10 hover:bg-primary/20 cursor-pointer z-10 relative">
+                            Baca Selengkapnya
+                        </button>
+                    </div>
+                    {% if episode.anime_info.genres %}
+                        <div class="flex flex-wrap gap-2 mt-4">
+                            {% for genre in episode.anime_info.genres %}
+                                <span class="bg-primary/40 backdrop-blur-sm text-white px-2 py-1 rounded-md text-sm">{{ genre }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <!-- Iklan di antara informasi anime -->
+                    {% if ads.between_info %}
+                        <div class="ad-container my-4"
+                             style="{% if ads.between_info.max_width %}max-width: {{ ads.between_info.max_width }} !important;
+                                    {% else %}max-width: 100%;
+                                    {% endif %} margin: 0 auto">
+                            <div class="text-xs text-gray-400 text-center mb-1">Iklan</div>
+                            <div class="ad-content light-bg backdrop-blur-sm rounded-lg p-2"
+                                 style="{% if ads.between_info.max_height %}max-height: {{ ads.between_info.max_height }} !important;
+                                        overflow-y: auto;
+                                        {% endif %}">{{ ads.between_info.ad_code|safe }}</div>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+            <!-- Other Episodes -->
+            {% if episode.other_episodes %}
+                <div class="light-bg backdrop-blur-md rounded-xl shadow-lg p-6 mb-8 light-border">
+                    <h2 class="text-xl font-bold light-text mb-4 pb-2 border-b ">Episode Lainnya</h2>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {% for ep in episode.other_episodes %}
+                            <div class="anime-card dynamic-border group relative rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300">
+                                {% with ep_slug=ep.url|extract_episode_slug %}
+                                    <a href="{% url 'streamapp:detail_episode_video' ep_slug %}"
+                                       class="block">
+                                        <!-- Card Background with Blur Effect -->
+                                        <div class="absolute inset-0 bg-black/20 backdrop-blur-md rounded-xl z-0"></div>
+                                        <!-- Image Container -->
+                                        <div class="relative pb-[56.25%] overflow-hidden z-10">
+                                            <!-- Image with Gradient Overlay -->
+                                            <div class="absolute inset-0 w-full h-full">
+                                                <img src="{{ ep.thumbnail_url }}"
+                                                     alt="{{ ep.title }}"
+                                                     class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                     loading="lazy"
+                                                     width="240"
+                                                     height="135"
+                                                     decoding="async">
+                                                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                                            </div>
+                                            <!-- Play Button (Visible on Hover) -->
+                                            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                                                <div class="w-12 h-12 rounded-full bg-primary/80 flex items-center justify-center">
+                                                    <i class="fas fa-play text-white"></i>
+                                                </div>
+                                            </div>
+                                            <!-- Content Overlay at Bottom -->
+                                            <div class="absolute bottom-0 left-0 right-0 p-3 z-20">
+                                                <h3 class="title text-sm font-semibold text-white mb-1 line-clamp-2">{{ ep.title }}</h3>
+                                                <div class="text-xs text-gray-300">{{ ep.release_date }}</div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                {% endwith %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+            <!-- Iklan di atas download links -->
+            {% if ads.above_download %}
+                <div class="ad-container mb-8"
+                     style="{% if ads.above_download.max_width %}max-width: {{ ads.above_download.max_width }} !important;
+                            {% else %}max-width: 100%;
+                            {% endif %} margin: 0 auto">
+                    <div class="text-xs text-gray-400 text-center mb-1">Iklan</div>
+                    <div class="ad-content light-bg backdrop-blur-sm rounded-lg p-2"
+                         style="{% if ads.above_download.max_height %}max-height: {{ ads.above_download.max_height }} !important;
+                                overflow-y: auto;
+                                {% endif %}">{{ ads.above_download.ad_code|safe }}</div>
+                </div>
+            {% endif %}
+            <!-- Download Links -->
+            {% if episode.download_links %}
+                <div class="light-bg backdrop-blur-md rounded-xl shadow-lg p-6 mb-8 light-border">
+                    <h2 class="text-xl font-bold light-text mb-4 pb-2 border-b">Download Links</h2>
+                    <div class="space-y-4">
+                        {% for format_type, resolutions in episode.download_links.items %}
+                            <div class="download-format-container">
+                                <!-- Format Type Dropdown Toggle -->
+                                <button class="format-toggle w-full flex justify-between items-center py-2 px-4 light-bg backdrop-blur-sm light-text rounded-lg hover:bg-primary/20 transition-colors light-border mb-2"
+                                        data-format="{{ format_type|slugify }}">
+                                    <span class="text-lg font-semibold">{{ format_type }}</span>
+                                    <i class="fas fa-chevron-down text-primary transition-transform duration-300"></i>
+                                </button>
+                                <!-- Format Content (Hidden by default) -->
+                                <div class="format-content hidden pl-4 space-y-3"
+                                     id="format-{{ format_type|slugify }}">
+                                    {% for resolution, providers in resolutions.items %}
+                                        <div class="resolution-container">
+                                            <!-- Resolution Toggle -->
+                                            <button class="resolution-toggle w-full flex justify-between items-center py-1 px-3 light-bg backdrop-blur-sm light-text rounded-lg hover:bg-primary/10 transition-colors light-border mb-1"
+                                                    data-resolution="{{ resolution|slugify }}-{{ format_type|slugify }}">
+                                                <span class="font-medium">{{ resolution }}</span>
+                                                <i class="fas fa-chevron-down text-primary transition-transform duration-300"></i>
+                                            </button>
+                                            <!-- Providers (Hidden by default) -->
+                                            <div class="providers-container hidden pl-3 pt-1 pb-2"
+                                                 id="resolution-{{ resolution|slugify }}-{{ format_type|slugify }}">
+                                                <div class="flex flex-wrap gap-2">
+                                                    {% for provider in providers %}
+                                                        <a href="{{ provider.url }}"
+                                                           class="px-3 py-1 bg-primary/80 backdrop-blur-sm text-white text-sm rounded-lg hover:bg-primary transition-colors border border-primary/30"
+                                                           target="_blank">{{ provider.provider }}</a>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <!-- Iklan di antara download links -->
+                    {% if ads.between_download %}
+                        <div class="ad-container my-4"
+                             style="{% if ads.between_download.max_width %}max-width: {{ ads.between_download.max_width }} !important;
+                                    {% else %}max-width: 100%;
+                                    {% endif %} margin: 0 auto">
+                            <div class="text-xs text-gray-400 text-center mb-1">Iklan</div>
+                            <div class="ad-content light-bg backdrop-blur-sm rounded-lg p-2"
+                                 style="{% if ads.between_download.max_height %}max-height: {{ ads.between_download.max_height }} !important;
+                                        overflow-y: auto;
+                                        {% endif %}">{{ ads.between_download.ad_code|safe }}</div>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+            <!-- Iklan di footer -->
+            {% if ads.footer %}
+                <div class="ad-container mb-8"
+                     style="{% if ads.footer.max_width %}max-width: {{ ads.footer.max_width }} !important;
+                            {% else %}max-width: 100%;
+                            {% endif %} margin: 0 auto">
+                    <div class="text-xs text-gray-400 text-center mb-1">Iklan</div>
+                    <div class="ad-content light-bg backdrop-blur-sm rounded-lg p-2"
+                         style="{% if ads.footer.max_height %}max-height: {{ ads.footer.max_height }} !important;
+                                overflow-y: auto;
+                                {% endif %}">{{ ads.footer.ad_code|safe }}</div>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="light-bg backdrop-blur-md border border-red-500/50 text-red-300 px-4 py-3 rounded-xl mb-8 text-center py-12">
+                <h2 class="text-xl font-bold mb-2">Data episode tidak ditemukan</h2>
+                <p>Silakan coba lagi nanti atau kembali ke beranda.</p>
             </div>
-        </div>
         {% endif %}
-    {% else %}
-        <div class="light-bg backdrop-blur-md border border-red-500/50 text-red-300 px-4 py-3 rounded-xl mb-8 text-center py-12">
-            <h2 class="text-xl font-bold mb-2">Data episode tidak ditemukan</h2>
-            <p>Silakan coba lagi nanti atau kembali ke beranda.</p>
-        </div>
-    {% endif %}
-    
-    
-</div>
+    </div>
 {% endblock %}
-
 {% block extra_js %}
-<script>
+    <script>
     // Inisialisasi variabel untuk melacak apakah anime sudah ditambahkan ke riwayat tontonan
     let animeAddedToHistory = false;
     
@@ -1527,9 +1571,8 @@
                 break;
         }
     }
-</script>
-
-<style>
+    </script>
+    <style>
     @keyframes fadeInUp {
         from {
             opacity: 0;
@@ -1587,5 +1630,5 @@
             setTimeout(resizeAdIframes, i * 1000);
         }
     });
-</style>
+    </style>
 {% endblock %}

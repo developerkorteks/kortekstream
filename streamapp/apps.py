@@ -15,15 +15,16 @@ class StreamappConfig(AppConfig):
         """
         # Import di sini untuk menghindari circular import
         from .models import SiteConfiguration
+        from asgiref.sync import AsyncToSync
         
         try:
             # Isi cache untuk SOURCE_DOMAIN
-            source_domain = SiteConfiguration.get_config('SOURCE_DOMAIN', 'v1.samehadaku.how')
+            source_domain = AsyncToSync(SiteConfiguration.get_config)('SOURCE_DOMAIN', 'v1.samehadaku.how')
             cache.set('template_filter_source_domain', source_domain, 60*60*24)  # Cache selama 24 jam
             logger.info(f"Cache filled with SOURCE_DOMAIN: {source_domain}")
             
             # Isi cache untuk konfigurasi lain yang mungkin diperlukan oleh template filter
-            all_configs = SiteConfiguration.get_all_configs()
+            all_configs = AsyncToSync(SiteConfiguration.get_all_configs)()
             for key, value in all_configs.items():
                 cache_key = f'template_tag_site_config_{key}'
                 cache.set(cache_key, value, 60*60*24)  # Cache selama 24 jam

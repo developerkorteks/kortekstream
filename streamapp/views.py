@@ -6,6 +6,7 @@ import time
 import functools
 import concurrent.futures
 from .models import Advertisement
+from .models import Advertisement, SiteConfiguration # Tambahkan SiteConfiguration
 from django.utils import timezone
 from django.db import models
 from asgiref.sync import sync_to_async
@@ -267,7 +268,8 @@ def _transform_anime_detail_data(raw_data: dict, anime_slug: str) -> dict:
         "episode_list": raw_data.get('episode_list', []),
         "recommendations": raw_data.get('recommendations', []),
         "error": raw_data.get('error', False),
-        "message": raw_data.get('message', '')
+        "message": raw_data.get('message', ''),
+        "rating": raw_data.get('rating', {'score': 'N/A', 'users': 'N/A'})
     }
 
 # Fungsi untuk mendapatkan detail anime dengan caching
@@ -878,7 +880,7 @@ async def detail_episode_video(request, episode_slug=None):
             try:
                 positions = [pos[0] for pos in Advertisement.POSITION_CHOICES]
                 for position in positions:
-                    position_ads = await get_active_ads(position)
+                    position_ads = await Advertisement.get_active_ads(position)
                     if position_ads:
                         ads[position] = position_ads[0]
             except Exception as ad_error:
@@ -1020,6 +1022,17 @@ class APIMonitorDashboardView(TemplateView):
         # Ambil informasi tentang API yang sedang digunakan
         current_api_info = get_current_api_info()
         
+        # Jika ada current_api.endpoint, ambil objek APIEndpoint yang sebenarnya dari DB
+        if current_api_info and current_api_info.get('endpoint') and current_api_info['endpoint'].get('name'):
+            try:
+                # Ambil objek APIEndpoint yang sebenarnya dari database
+                # Gunakan .get() untuk memastikan kita mendapatkan instance model, bukan hanya dict
+                current_api_endpoint_obj = APIEndpoint.objects.get(name=current_api_info['endpoint']['name'])
+                current_api_info['endpoint'] = current_api_endpoint_obj
+            except APIEndpoint.DoesNotExist:
+                logger.warning(f"APIEndpoint dengan nama {current_api_info['endpoint']['name']} tidak ditemukan di database.")
+                current_api_info['endpoint'] = None # Set to None if not found
+
         # Tambahkan data ke context
         context['api_status'] = api_status
         context['current_api'] = current_api_info

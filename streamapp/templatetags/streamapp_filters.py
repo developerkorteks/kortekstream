@@ -3,8 +3,8 @@ from django.utils.safestring import mark_safe
 from django.core.cache import cache
 import re
 from ..models import SiteConfiguration
-from ..api_client import FallbackAPIClient
 import logging
+from asgiref.sync import sync_to_async
 
 register = template.Library()
 logger = logging.getLogger(__name__)
@@ -15,37 +15,12 @@ DEFAULT_SOURCE_DOMAIN = 'v1.samehadaku.how'
 
 def get_source_domain_from_cache():
     """
-    Mendapatkan domain sumber data dari cache.
-    Jika tidak ada di cache, gunakan nilai default.
+    Mendapatkan domain sumber data dari cache atau database secara synchronous.
     """
-    try:
-        # Coba dapatkan dari FallbackAPIClient terlebih dahulu
-        api_client = FallbackAPIClient()
-        source_domain = api_client.get_current_source_domain()
-        if source_domain:
-            return source_domain
-    except Exception as e:
-        logger.error(f"Error getting source domain from FallbackAPIClient: {e}")
-    
-    # Jika gagal, gunakan cache
     source_domain = cache.get(SOURCE_DOMAIN_CACHE_KEY)
-    
-    # Jika tidak ada di cache, gunakan nilai default
     if source_domain is None:
-        # Gunakan nilai default dan simpan ke cache
-        source_domain = DEFAULT_SOURCE_DOMAIN
-        try:
-            # Coba ambil dari database secara sinkron (hanya saat server startup)
-            # Ini hanya dijalankan sekali saat cache kosong
-            db_domain = SiteConfiguration.get_config('SOURCE_DOMAIN')
-            if db_domain:
-                source_domain = db_domain
-        except Exception as e:
-            logger.error(f"Error getting SOURCE_DOMAIN from database: {e}")
-        
-        # Simpan ke cache untuk digunakan selanjutnya
+        source_domain = AsyncToSync(SiteConfiguration.get_current_source_domain)()
         cache.set(SOURCE_DOMAIN_CACHE_KEY, source_domain, 60*60*24)  # Cache selama 24 jam
-    
     return source_domain
 
 @register.filter
@@ -142,7 +117,7 @@ def format_url(url):
 @register.simple_tag
 def get_site_config(key, default=""):
     """
-    Mendapatkan nilai konfigurasi situs berdasarkan key.
+    Mendapatkan nilai konfigurasi situs berdasarkan key secara synchronous.
     Menggunakan cache untuk menghindari operasi database.
     """
     cache_key = f'template_tag_site_config_{key}'
@@ -153,7 +128,7 @@ def get_site_config(key, default=""):
     # Jika tidak ada di cache, coba ambil dari database
     if value is None:
         try:
-            value = SiteConfiguration.get_config(key, default)
+            value = AsyncToSync(SiteConfiguration.get_config)(key, default)
             # Simpan ke cache untuk digunakan selanjutnya
             cache.set(cache_key, value, 60*60*24)  # Cache selama 24 jam
         except Exception as e:
@@ -165,6 +140,6 @@ def get_site_config(key, default=""):
 @register.simple_tag
 def get_current_source_domain():
     """
-    Mendapatkan domain sumber data yang sedang aktif.
+    Mendapatkan domain sumber data yang sedang aktif secara synchronous.
     """
     return get_source_domain_from_cache()

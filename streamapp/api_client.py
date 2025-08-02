@@ -268,7 +268,13 @@ class FallbackAPIClient:
                     monitor.error_message = error_message
                     monitor.response_data = response_data
                     monitor.last_checked = timezone.now()
-                    monitor.save()
+                monitor.save()
+
+                # Update last_used and success_count on the APIEndpoint
+                if status == "up":
+                    endpoint.last_used = timezone.now()
+                    endpoint.success_count = (endpoint.success_count or 0) + 1
+                    endpoint.save()
         except Exception as e:
             logger.error(f"Error updating API monitor: {e}")
 

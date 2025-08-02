@@ -1,187 +1,188 @@
-
 {% extends 'streamapp/base.html' %}
 {% load static %}
 {% block title %}Semua Movie Anime - KortekStream{% endblock %}
-
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Breadcrumb -->
-    <nav class="flex mb-6" aria-label="Breadcrumb">
-        <ol class="inline-flex items-center space-x-1 md:space-x-3 light-bg backdrop-blur-md px-4 py-2 rounded-lg light-border">
-            <li class="inline-flex items-center">
-                <a href="{% url 'streamapp:index' %}" class="inline-flex items-center text-sm font-medium text-black dark:text-white hover:text-primary transition-colors">
-                    <i class="fas fa-home mr-2"></i>
-                    Beranda
-                </a>
-            </li>
-            <li aria-current="page">
-                <div class="flex items-center">
-                    <i class="fas fa-chevron-right text-gray-600 dark:text-gray-400 mx-2"></i>
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Semua Movie Anime</span>
-                </div>
-            </li>
-        </ol>
-    </nav>
-
-    <!-- Page Header - Lebih responsif dengan padding yang menyesuaikan ukuran layar -->
-    <div class="mb-8 bg-gradient-to-r from-primary/80 to-black/60 backdrop-blur-md p-4 sm:p-6 rounded-xl light-border">
-        <h1 class="text-2xl sm:text-3xl font-bold text-white">Semua Movie Anime</h1>
-        <p class="text-sm sm:text-base text-gray-300 mt-2">Koleksi lengkap movie anime terbaik</p>
-    </div>
-
-    {% if error %}
-        <div class="bg-red-100 dark:bg-red-900 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg mb-8">
-            <p>{{ error }}</p>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Breadcrumb -->
+        <nav class="flex mb-6" aria-label="Breadcrumb">
+            <ol class="inline-flex items-center space-x-1 md:space-x-3 light-bg backdrop-blur-md px-4 py-2 rounded-lg light-border">
+                <li class="inline-flex items-center">
+                    <a href="{% url 'streamapp:index' %}"
+                       class="inline-flex items-center text-sm font-medium text-black dark:text-white hover:text-primary transition-colors">
+                        <i class="fas fa-home mr-2"></i>
+                        Beranda
+                    </a>
+                </li>
+                <li aria-current="page">
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right text-gray-600 dark:text-gray-400 mx-2"></i>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Semua Movie Anime</span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+        <!-- Page Header - Lebih responsif dengan padding yang menyesuaikan ukuran layar -->
+        <div class="mb-8 bg-gradient-to-r from-primary/80 to-black/60 backdrop-blur-md p-4 sm:p-6 rounded-xl light-border">
+            <h1 class="text-2xl sm:text-3xl font-bold text-white">Semua Movie Anime</h1>
+            <p class="text-sm sm:text-base text-gray-300 mt-2">Koleksi lengkap movie anime terbaik</p>
         </div>
-    {% else %}
-        <!-- Info Panel - Lebih responsif dengan ukuran teks yang menyesuaikan -->
-        <div class="light-bg backdrop-blur-md rounded-lg light-border p-3 sm:p-4 mb-6 sm:mb-8">
-            {% if movie_data.total_pages %}
-                <p class="text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300">
-                    <span class="block sm:inline">Total halaman: <span class="light-text font-semibold">{{ movie_data.total_pages }}</span></span>
-                    <span class="hidden sm:inline"> | </span>
-                    <span class="block sm:inline">Menampilkan halaman <span class="light-text font-semibold">{{ current_page }}</span></span>
-                </p>
-                <p class="text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300 mt-1 sm:mt-0">Total movie: <span class="light-text font-semibold">{{ movie_data.movie_count }}</span></p>
-            {% else %}
-                <p class="text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300">Menampilkan halaman <span class="light-text font-semibold">{{ current_page }}</span></p>
-                <p class="text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300 mt-1 sm:mt-0">Total movie: <span class="light-text font-semibold">{{ movie_data.data|length }}</span></p>
-            {% endif %}
-        </div>
-        
-        <!-- Movie Grid - Mempertahankan 2 kartu per baris dengan spacing yang responsif -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
-            {% if movie_data.data %}
-                {% for movie in movie_data.data %}
-                    <div class="anime-card dynamic-border group relative rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 dark:shadow-lg dark:hover:shadow-xl">
-                        <a href="{% url 'streamapp:detail_anime' movie.anime_slug %}" class="block">
-                            <!-- Card Background with Blur Effect -->
-                            <div class="absolute inset-0 bg-black/20 dark:bg-black/20 backdrop-blur-md rounded-xl z-0"></div>
-                            
-                            <!-- Image Container -->
-                            <div class="relative pb-[140%] overflow-hidden z-10">
-                                <!-- Image with Gradient Overlay -->
-                                <div class="absolute inset-0 w-full h-full">
-                                    <img src="{{ movie.cover }}" alt="{{ movie.judul }}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
-                                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                                </div>
-                                
-                                <!-- Play Button (Visible on Hover) -->
-                                <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-                                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/80 flex items-center justify-center">
-                                        <i class="fas fa-play text-white text-sm sm:text-base"></i>
+        {% if error %}
+            <div class="bg-red-100 dark:bg-red-900 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg mb-8">
+                <p>{{ error }}</p>
+            </div>
+        {% else %}
+            <!-- Info Panel - Lebih responsif dengan ukuran teks yang menyesuaikan -->
+            <div class="light-bg backdrop-blur-md rounded-lg light-border p-3 sm:p-4 mb-6 sm:mb-8">
+                {% if movie_data.total_pages %}
+                    <p class="text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300">
+                        <span class="block sm:inline">Total halaman: <span class="light-text font-semibold">{{ movie_data.total_pages }}</span></span>
+                        <span class="hidden sm:inline">|</span>
+                        <span class="block sm:inline">Menampilkan halaman <span class="light-text font-semibold">{{ current_page }}</span></span>
+                    </p>
+                    <p class="text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300 mt-1 sm:mt-0">
+                        Total movie: <span class="light-text font-semibold">{{ movie_data.movie_count }}</span>
+                    </p>
+                {% else %}
+                    <p class="text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300">
+                        Menampilkan halaman <span class="light-text font-semibold">{{ current_page }}</span>
+                    </p>
+                    <p class="text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300 mt-1 sm:mt-0">
+                        Total movie: <span class="light-text font-semibold">{{ movie_data.data|length }}</span>
+                    </p>
+                {% endif %}
+            </div>
+            <!-- Movie Grid - Mempertahankan 2 kartu per baris dengan spacing yang responsif -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
+                {% if movie_data.data %}
+                    {% for movie in movie_data.data %}
+                        <div class="anime-card dynamic-border group relative rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 dark:shadow-lg dark:hover:shadow-xl">
+                            <a href="{% url 'streamapp:detail_anime' movie.anime_slug %}"
+                               class="block">
+                                <!-- Card Background with Blur Effect -->
+                                <div class="absolute inset-0 bg-black/20 dark:bg-black/20 backdrop-blur-md rounded-xl z-0"></div>
+                                <!-- Image Container -->
+                                <div class="relative pb-[140%] overflow-hidden z-10">
+                                    <!-- Image with Gradient Overlay -->
+                                    <div class="absolute inset-0 w-full h-full">
+                                        <img src="{{ movie.cover }}"
+                                             alt="{{ movie.judul }}"
+                                             class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                                     </div>
-                                </div>
-                                
-                                {% if movie.status %}
-                                    <div class="absolute top-1 sm:top-2 right-1 sm:right-2 bg-primary/80 backdrop-blur-sm text-white text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md z-20">
-                                        {{ movie.status }}
+                                    <!-- Play Button (Visible on Hover) -->
+                                    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/80 flex items-center justify-center">
+                                            <i class="fas fa-play text-white text-sm sm:text-base"></i>
+                                        </div>
                                     </div>
-                                {% endif %}
-                                
-                                <!-- Content Overlay at Bottom -->
-                                <div class="absolute bottom-0 left-0 right-0 p-2 sm:p-3 md:p-4 z-20">
-                                    <h3 class="title text-xs sm:text-sm font-semibold text-white mb-1 sm:mb-2 line-clamp-2">{{ movie.judul }}</h3>
-                                    
-                                    <div class="flex space-x-2 sm:space-x-3 text-[10px] sm:text-xs mb-1 sm:mb-2">
-                                        {% if movie.skor %}
-                                            <div class="text-yellow-300 dark:text-yellow-300 bg-black/40 dark:bg-black/40 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md">
-                                                <i class="fas fa-star mr-1"></i> {{ movie.skor }}
-                                            </div>
-                                        {% endif %}
-                                        
-                                        {% if movie.views %}
-                                            <div class="text-gray-300 dark:text-gray-300 bg-black/40 dark:bg-black/40 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md">
-                                                <i class="fas fa-eye mr-1"></i> {{ movie.views }}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                    
-                                    {% if movie.genres %}
-                                        <div class="flex flex-wrap gap-1 mt-1 sm:mt-2">
-                                            {% for genre in movie.genres|slice:":2" %}
-                                                <span class="bg-primary/40 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-md">{{ genre }}</span>
-                                            {% endfor %}
-                                            {% if movie.genres|length > 2 %}
-                                                <span class="bg-black/40 dark:bg-black/40 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-md">+{{ movie.genres|length|add:"-2" }}</span>
-                                            {% endif %}
+                                    {% if movie.status %}
+                                        <div class="absolute top-1 sm:top-2 right-1 sm:right-2 bg-primary/80 backdrop-blur-sm text-white text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md z-20">
+                                            {{ movie.status }}
                                         </div>
                                     {% endif %}
+                                    <!-- Content Overlay at Bottom -->
+                                    <div class="absolute bottom-0 left-0 right-0 p-2 sm:p-3 md:p-4 z-20">
+                                        <h3 class="title text-xs sm:text-sm font-semibold text-white mb-1 sm:mb-2 line-clamp-2">{{ movie.judul }}</h3>
+                                        <div class="flex space-x-2 sm:space-x-3 text-[10px] sm:text-xs mb-1 sm:mb-2">
+                                            {% if movie.skor %}
+                                                <div class="text-yellow-300 dark:text-yellow-300 bg-black/40 dark:bg-black/40 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md">
+                                                    <i class="fas fa-star mr-1"></i> {{ movie.skor }}
+                                                </div>
+                                            {% endif %}
+                                            {% if movie.views %}
+                                                <div class="text-gray-300 dark:text-gray-300 bg-black/40 dark:bg-black/40 backdrop-blur-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md">
+                                                    <i class="fas fa-eye mr-1"></i> {{ movie.views }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                        {% if movie.genres %}
+                                            <div class="flex flex-wrap gap-1 mt-1 sm:mt-2">
+                                                {% for genre in movie.genres|slice:":2" %}
+                                                    <span class="bg-primary/40 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-md">{{ genre }}</span>
+                                                {% endfor %}
+                                                {% if movie.genres|length > 2 %}
+                                                    <span class="bg-black/40 dark:bg-black/40 backdrop-blur-sm text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-md">+{{ movie.genres|length|add:"-2" }}</span>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                            </div>
-                        </a>
+                            </a>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="col-span-full light-bg rounded-lg p-6 text-center">
+                        <p class="text-gray-600 dark:text-gray-400">Tidak ada movie yang ditemukan.</p>
                     </div>
-                {% endfor %}
-            {% else %}
-                <div class="col-span-full light-bg rounded-lg p-6 text-center">
-                    <p class="text-gray-600 dark:text-gray-400">Tidak ada movie yang ditemukan.</p>
-                </div>
-            {% endif %}
-        </div>
-        
-        <!-- Pagination - Lebih responsif dengan spacing yang menyesuaikan -->
-        <div class="flex flex-wrap justify-center mt-6 sm:mt-8 md:mt-10 gap-2 px-2">
-            {% if current_page > 1 %}
-                <a href="?page={{ current_page|add:'-1' }}" class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm light-bg backdrop-blur-md light-border light-text rounded-lg hover:bg-primary/80 transition-colors">
-                    <i class="fas fa-chevron-left mr-1"></i><span class="hidden xs:inline">Sebelumnya</span>
-                </a>
-            {% else %}
-                <span class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-black/20 dark:bg-black/20 backdrop-blur-md border border-gray-700/30 dark:border-gray-700/30 text-gray-400 dark:text-gray-400 rounded-lg cursor-not-allowed">
-                    <i class="fas fa-chevron-left mr-1"></i><span class="hidden xs:inline">Sebelumnya</span>
-                </span>
-            {% endif %}
-            
-            <!-- Pagination Numbers - Lebih responsif dengan menyembunyikan beberapa nomor pada layar kecil -->
-            {% if movie_data.total_pages %}
-                {% for i in movie_data.total_pages|ljust:"5"|slice:":5" %}
-                    {% if forloop.counter == current_page %}
-                        <span class="px-2.5 sm:px-3.5 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-primary/80 backdrop-blur-md border border-primary/30 text-white rounded-lg">
-                            {{ forloop.counter }}
-                        </span>
-                    {% else %}
-                        <!-- Sembunyikan beberapa nomor halaman pada layar kecil -->
-                        {% if forloop.counter == 1 or forloop.counter == movie_data.total_pages or forloop.counter == current_page|add:"-1" or forloop.counter == current_page|add:"1" %}
-                            <a href="?page={{ forloop.counter }}" class="px-2.5 sm:px-3.5 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm light-bg backdrop-blur-md light-border light-text rounded-lg hover:bg-primary/60 transition-colors">
+                {% endif %}
+            </div>
+            <!-- Pagination - Lebih responsif dengan spacing yang menyesuaikan -->
+            <div class="flex flex-wrap justify-center mt-6 sm:mt-8 md:mt-10 gap-2 px-2">
+                {% if current_page > 1 %}
+                    <a href="?page={{ current_page|add:'-1' }}"
+                       class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm light-bg backdrop-blur-md light-border light-text rounded-lg hover:bg-primary/80 transition-colors">
+                        <i class="fas fa-chevron-left mr-1"></i><span class="hidden xs:inline">Sebelumnya</span>
+                    </a>
+                {% else %}
+                    <span class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-black/20 dark:bg-black/20 backdrop-blur-md border border-gray-700/30 dark:border-gray-700/30 text-gray-400 dark:text-gray-400 rounded-lg cursor-not-allowed">
+                        <i class="fas fa-chevron-left mr-1"></i><span class="hidden xs:inline">Sebelumnya</span>
+                    </span>
+                {% endif %}
+                <!-- Pagination Numbers - Lebih responsif dengan menyembunyikan beberapa nomor pada layar kecil -->
+                {% if movie_data.total_pages %}
+                    {% for i in movie_data.total_pages|ljust:"5"|slice:":5" %}
+                        {% if forloop.counter == current_page %}
+                            <span class="px-2.5 sm:px-3.5 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-primary/80 backdrop-blur-md border border-primary/30 text-white rounded-lg">
                                 {{ forloop.counter }}
-                            </a>
+                            </span>
                         {% else %}
-                            <a href="?page={{ forloop.counter }}" class="hidden sm:block px-2.5 sm:px-3.5 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm light-bg backdrop-blur-md light-border light-text rounded-lg hover:bg-primary/60 transition-colors">
-                                {{ forloop.counter }}
-                            </a>
+                            <!-- Sembunyikan beberapa nomor halaman pada layar kecil -->
+                            {% if forloop.counter == 1 or forloop.counter == movie_data.total_pages or forloop.counter == current_page|add:"-1" or forloop.counter == current_page|add:"1" %}
+                                <a href="?page={{ forloop.counter }}"
+                                   class="px-2.5 sm:px-3.5 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm light-bg backdrop-blur-md light-border light-text rounded-lg hover:bg-primary/60 transition-colors">
+                                    {{ forloop.counter }}
+                                </a>
+                            {% else %}
+                                <a href="?page={{ forloop.counter }}"
+                                   class="hidden sm:block px-2.5 sm:px-3.5 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm light-bg backdrop-blur-md light-border light-text rounded-lg hover:bg-primary/60 transition-colors">
+                                    {{ forloop.counter }}
+                                </a>
+                            {% endif %}
                         {% endif %}
-                    {% endif %}
-                {% endfor %}
-            {% else %}
-                {% for i in "12345" %}
-                    {% if current_page == forloop.counter %}
-                        <span class="px-2.5 sm:px-3.5 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-primary/80 backdrop-blur-md border border-primary/30 text-white rounded-lg">
-                            {{ forloop.counter }}
-                        </span>
-                    {% else %}
-                        <!-- Sembunyikan beberapa nomor halaman pada layar kecil -->
-                        {% if forloop.counter == 1 or forloop.counter == 5 or forloop.counter == current_page|add:"-1" or forloop.counter == current_page|add:"1" %}
-                            <a href="?page={{ forloop.counter }}" class="px-2.5 sm:px-3.5 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm light-bg backdrop-blur-md light-border light-text rounded-lg hover:bg-primary/60 transition-colors">
+                    {% endfor %}
+                {% else %}
+                    {% for i in "12345" %}
+                        {% if current_page == forloop.counter %}
+                            <span class="px-2.5 sm:px-3.5 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-primary/80 backdrop-blur-md border border-primary/30 text-white rounded-lg">
                                 {{ forloop.counter }}
-                            </a>
+                            </span>
                         {% else %}
-                            <a href="?page={{ forloop.counter }}" class="hidden sm:block px-2.5 sm:px-3.5 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm light-bg backdrop-blur-md light-border light-text rounded-lg hover:bg-primary/60 transition-colors">
-                                {{ forloop.counter }}
-                            </a>
+                            <!-- Sembunyikan beberapa nomor halaman pada layar kecil -->
+                            {% if forloop.counter == 1 or forloop.counter == 5 or forloop.counter == current_page|add:"-1" or forloop.counter == current_page|add:"1" %}
+                                <a href="?page={{ forloop.counter }}"
+                                   class="px-2.5 sm:px-3.5 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm light-bg backdrop-blur-md light-border light-text rounded-lg hover:bg-primary/60 transition-colors">
+                                    {{ forloop.counter }}
+                                </a>
+                            {% else %}
+                                <a href="?page={{ forloop.counter }}"
+                                   class="hidden sm:block px-2.5 sm:px-3.5 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm light-bg backdrop-blur-md light-border light-text rounded-lg hover:bg-primary/60 transition-colors">
+                                    {{ forloop.counter }}
+                                </a>
+                            {% endif %}
                         {% endif %}
-                    {% endif %}
-                {% endfor %}
-            {% endif %}
-            
-            {% if current_page < movie_data.total_pages %}
-                <a href="?page={{ current_page|add:'1' }}" class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm light-bg backdrop-blur-md light-border light-text rounded-lg hover:bg-primary/80 transition-colors">
-                    <span class="hidden xs:inline">Selanjutnya</span> <i class="fas fa-chevron-right ml-1"></i>
-                </a>
-            {% else %}
-                <span class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-black/20 dark:bg-black/20 backdrop-blur-md border border-gray-700/30 dark:border-gray-700/30 text-gray-400 dark:text-gray-400 rounded-lg cursor-not-allowed">
-                    <span class="hidden xs:inline">Selanjutnya</span> <i class="fas fa-chevron-right ml-1"></i>
-                </span>
-            {% endif %}
-        </div>
-    {% endif %}
-</div>
+                    {% endfor %}
+                {% endif %}
+                {% if current_page < movie_data.total_pages %}
+                    <a href="?page={{ current_page|add:'1' }}"
+                       class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm light-bg backdrop-blur-md light-border light-text rounded-lg hover:bg-primary/80 transition-colors">
+                        <span class="hidden xs:inline">Selanjutnya</span> <i class="fas fa-chevron-right ml-1"></i>
+                    </a>
+                {% else %}
+                    <span class="px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-black/20 dark:bg-black/20 backdrop-blur-md border border-gray-700/30 dark:border-gray-700/30 text-gray-400 dark:text-gray-400 rounded-lg cursor-not-allowed">
+                        <span class="hidden xs:inline">Selanjutnya</span> <i class="fas fa-chevron-right ml-1"></i>
+                    </span>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
 {% endblock %}

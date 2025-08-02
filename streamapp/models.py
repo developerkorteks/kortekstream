@@ -19,6 +19,8 @@ class APIEndpoint(models.Model):
     source_domain = models.CharField(max_length=255, verbose_name="Domain Sumber Data", default="v1.samehadaku.how", help_text="Domain sumber data yang digunakan untuk memformat URL gambar dan link")
     priority = models.IntegerField(default=0, verbose_name="Prioritas (semakin tinggi semakin diprioritaskan)")
     is_active = models.BooleanField(default=True, verbose_name="Aktif")
+    last_used = models.DateTimeField(null=True, blank=True, verbose_name="Terakhir Digunakan")
+    success_count = models.IntegerField(default=0, verbose_name="Jumlah Sukses")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Dibuat pada")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Diperbarui pada")
     
@@ -252,44 +254,49 @@ class SiteConfiguration(models.Model):
         cache.delete("all_site_configs")
     
     @classmethod
-    def get_config(cls, key, default=None):
+    async def get_config(cls, key, default=None):
         """
-        Mendapatkan nilai konfigurasi berdasarkan key.
+        Mendapatkan nilai konfigurasi berdasarkan key secara asynchronous.
         Menggunakan cache untuk meningkatkan performa.
         """
-        # Coba ambil dari cache terlebih dahulu
+        from asgiref.sync import sync_to_async
+
         cache_key = f"site_config_{key}"
-        cached_value = cache.get(cache_key)
+        cached_value = await sync_to_async(cache.get)(cache_key) # Added await sync_to_async
         if cached_value is not None:
             return cached_value
         
-        # Jika tidak ada di cache, ambil dari database
         try:
-            config = cls.objects.get(key=key, is_active=True)
-            # Simpan ke cache
-            cache.set(cache_key, config.value, 3600)  # Cache selama 1 jam
+            config = await sync_to_async(cls.objects.get)(key=key, is_active=True)
+            await sync_to_async(cache.set)(cache_key, config.value, 3600)  # Added await sync_to_async
             return config.value
         except cls.DoesNotExist:
-            # Jika tidak ada di database, kembalikan nilai default
             return default
     
     @classmethod
-    def get_all_configs(cls):
+    async def get_all_configs(cls):
         """
-        Mendapatkan semua konfigurasi aktif.
+        Mendapatkan semua konfigurasi aktif secara asynchronous.
         Menggunakan cache untuk meningkatkan performa.
         """
-        # Coba ambil dari cache terlebih dahulu
+        from asgiref.sync import sync_to_async
+
         cache_key = "all_site_configs"
-        cached_configs = cache.get(cache_key)
+        cached_configs = await sync_to_async(cache.get)(cache_key) # Added await sync_to_async
         if cached_configs is not None:
             return cached_configs
         
-        # Jika tidak ada di cache, ambil dari database
-        configs = {config.key: config.value for config in cls.objects.filter(is_active=True)}
-        # Simpan ke cache
-        cache.set(cache_key, configs, 3600)  # Cache selama 1 jam
+        configs_queryset = await sync_to_async(cls.objects.filter)(is_active=True)
+        configs = {config.key: config.value for config in await sync_to_async(list)(configs_queryset)}
+        await sync_to_async(cache.set)(cache_key, configs, 3600)  # Added await sync_to_async
         return configs
+
+    @classmethod
+    async def get_current_source_domain(cls):
+        """
+        Mendapatkan domain sumber data yang sedang aktif dari konfigurasi situs secara asynchronous.
+        """
+        return await cls.get_config('SOURCE_DOMAIN', 'v1.samehadaku.how')
 
 
 class Advertisement(models.Model):
@@ -339,7 +346,6 @@ class Advertisement(models.Model):
         """
         Memeriksa apakah iklan masih dalam rentang tanggal yang valid.
         """
-        from django.utils import timezone
         now = timezone.now()
         
         if self.start_date and self.start_date > now:
@@ -349,3 +355,31 @@ class Advertisement(models.Model):
             return False
         
         return True
+
+    @classmethod
+    async def get_active_ads(cls, position):
+        """
+        Mendapatkan iklan aktif berdasarkan posisi.
+        """
+        # Gunakan sync_to_async untuk menjalankan query database secara asynchronous
+        from asgiref.sync import sync_to_async
+        
+        try:
+            active_ads = await sync_to_async(list)(
+                cls.objects.filter(
+                    position=position,
+                    is_active=True,
+                ).order_by('-priority')
+            )
+            
+            # Filter iklan berdasarkan rentang tanggal yang valid
+            valid_ads = [ad for ad in active_ads if ad.is_valid_date_range()]
+            
+            logger.info(f"Found {len(valid_ads)} active ads for position '{position}' after date range check.")
+            for ad in valid_ads:
+                logger.info(f"  - Ad: {ad.name}, Provider: {ad.provider}, Active: {ad.is_active}, Start: {ad.start_date}, End: {ad.end_date}")
+            
+            return valid_ads
+        except Exception as e:
+            logger.error(f"Error getting active ads for position {position}: {e}", exc_info=True)
+            return []

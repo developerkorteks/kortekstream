@@ -1,10 +1,8 @@
 {% extends 'streamapp/base.html' %}
 {% load static %}
-
 {% block title %}Dashboard Monitoring API - KortekStream{% endblock %}
-
 {% block extra_css %}
-<style>
+    <style>
     .status-up {
         color: #10b981; /* green-500 */
     }
@@ -41,280 +39,281 @@
         height: 100%;
         transition: width 0.5s ease;
     }
-</style>
+    </style>
 {% endblock %}
-
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="flex flex-col md:flex-row justify-between items-center mb-6">
-        <h1 class="text-2xl md:text-3xl font-bold mb-4 md:mb-0">Dashboard Monitoring API</h1>
-        
-        <div class="flex space-x-2">
-            <form method="post" id="check-api-form">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="check_api">
-                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex items-center transition-colors">
-                    <i class="fas fa-sync-alt mr-2"></i> Periksa Status API
-                </button>
-            </form>
-            <a href="{% url 'admin:streamapp_apiendpoint_changelist' %}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md flex items-center transition-colors">
-                <i class="fas fa-cog mr-2"></i> Kelola API
-            </a>
-        </div>
-    </div>
-    
-    <!-- Current API Status -->
-    <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10 mb-8">
-        <h2 class="text-xl font-bold mb-4">API Aktif Saat Ini</h2>
-        
-        {% if current_api.endpoint %}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <div class="mb-4">
-                    <h3 class="text-lg font-semibold mb-2">Informasi Endpoint</h3>
-                    <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-                        <div class="mb-2">
-                            <span class="font-medium">Nama:</span> {{ current_api.endpoint.name }}
-                        </div>
-                        <div class="mb-2">
-                            <span class="font-medium">URL:</span> {{ current_api.endpoint.url }}
-                        </div>
-                        <div class="mb-2">
-                            <span class="font-medium">Domain Sumber:</span> {{ current_api.endpoint.source_domain|default:"Tidak diatur" }}
-                        </div>
-                        <div class="mb-2">
-                            <span class="font-medium">Prioritas:</span> {{ current_api.endpoint.priority }}
-                        </div>
-                        <div class="mb-2">
-                            <span class="font-medium">Status:</span>
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                {% if current_api.status == 'up' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
-                                {% elif current_api.status == 'down' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
-                                {% elif current_api.status == 'error' or current_api.status == 'timeout' %}bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300
-                                {% else %}bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300{% endif %}">
-                                {{ current_api.status }}
-                            </span>
-                        </div>
-                        <div class="mb-2">
-                            <span class="font-medium">Pesan:</span> {{ current_api.message }}
-                        </div>
-                        <div class="mb-2">
-                            <span class="font-medium">Terakhir Digunakan:</span> {{ current_api.last_used|date:"d M Y H:i:s" }}
-                        </div>
-                        <div>
-                            <span class="font-medium">Jumlah Sukses:</span> {{ current_api.success_count }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div>
-                <h3 class="text-lg font-semibold mb-2">Log Error Terbaru</h3>
-                {% if current_api.error_log %}
-                <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 max-h-60 overflow-y-auto">
-                    {% for error in current_api.error_log %}
-                    <div class="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700 last:border-0 last:mb-0 last:pb-0">
-                        <div class="flex items-center mb-1">
-                            <span class="inline-block w-2 h-2 rounded-full mr-2
-                                {% if error.type == 'timeout' %}bg-amber-500
-                                {% elif error.type == 'connection' %}bg-red-500
-                                {% else %}bg-orange-500{% endif %}"></span>
-                            <span class="font-medium">{{ error.type|title }}</span>
-                            <span class="ml-auto text-xs text-gray-500">{{ error.timestamp|date:"d M Y H:i:s" }}</span>
-                        </div>
-                        <div class="text-sm">
-                            <span class="font-medium">Endpoint:</span> {{ error.endpoint }}
-                        </div>
-                        <div class="text-sm">
-                            <span class="font-medium">URL:</span> {{ error.url }}
-                        </div>
-                        <div class="text-sm">
-                            <span class="font-medium">Pesan:</span> {{ error.message }}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 text-center">
-                    <p class="text-gray-500 dark:text-gray-400">Tidak ada error yang tercatat</p>
-                </div>
-                {% endif %}
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+            <h1 class="text-2xl md:text-3xl font-bold mb-4 md:mb-0">Dashboard Monitoring API</h1>
+            <div class="flex space-x-2">
+                <form method="post" id="check-api-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="check_api">
+                    <button type="submit"
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md flex items-center transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i> Periksa Status API
+                    </button>
+                </form>
+                <a href="{% url 'admin:streamapp_apiendpoint_changelist' %}"
+                   class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md flex items-center transition-colors">
+                    <i class="fas fa-cog mr-2"></i> Kelola API
+                </a>
             </div>
         </div>
-        {% else %}
-        <div class="text-center py-4">
-            <p class="text-gray-500 dark:text-gray-400">Belum ada API yang digunakan</p>
-        </div>
-        {% endif %}
-    </div>
-    
-    <!-- Status Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10">
-            <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold">Total Endpoint</h3>
-                <span class="text-2xl font-bold">{{ api_status.total_endpoints }}</span>
-            </div>
-        </div>
-        
-        <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10">
-            <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold">Status Up</h3>
-                <span class="text-2xl font-bold status-up">{{ api_status.status_counts.up }}</span>
-            </div>
-            <div class="progress-bar bg-gray-200 dark:bg-gray-700 mt-2">
-                <div class="progress-bar-fill bg-green-500" style="width: {{ status_percentages.up }}%;"></div>
-            </div>
-            <div class="text-xs text-right mt-1">{{ status_percentages.up }}%</div>
-        </div>
-        
-        <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10">
-            <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold">Status Down</h3>
-                <span class="text-2xl font-bold status-down">{{ api_status.status_counts.down }}</span>
-            </div>
-            <div class="progress-bar bg-gray-200 dark:bg-gray-700 mt-2">
-                <div class="progress-bar-fill bg-red-500" style="width: {{ status_percentages.down }}%;"></div>
-            </div>
-            <div class="text-xs text-right mt-1">{{ status_percentages.down }}%</div>
-        </div>
-        
-        <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10">
-            <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold">Status Error/Timeout</h3>
-                <span class="text-2xl font-bold status-error">{{ api_status.status_counts.error|add:api_status.status_counts.timeout }}</span>
-            </div>
-            <div class="progress-bar bg-gray-200 dark:bg-gray-700 mt-2">
-                <div class="progress-bar-fill bg-amber-500" style="width: {{ status_percentages.error|add:status_percentages.timeout }}%;"></div>
-            </div>
-            <div class="text-xs text-right mt-1">{{ status_percentages.error|add:status_percentages.timeout }}%</div>
-        </div>
-    </div>
-    
-    <!-- API Endpoints Table -->
-    <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10 mb-8">
-        <h2 class="text-xl font-bold mb-4">API Endpoints</h2>
-        
-        {% if endpoints %}
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead>
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">URL</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Domain Sumber</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Prioritas</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                    {% for endpoint in endpoints %}
-                    <tr>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ endpoint.name }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ endpoint.url }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ endpoint.source_domain|default:"Tidak diatur" }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ endpoint.priority }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">
-                            {% for monitor in endpoint.monitors.all %}
-                            <div class="flex items-center mb-1 last:mb-0">
-                                <span class="inline-block w-2 h-2 rounded-full mr-2 
-                                    {% if monitor.status == 'up' %}bg-green-500
-                                    {% elif monitor.status == 'down' %}bg-red-500
-                                    {% elif monitor.status == 'error' or monitor.status == 'timeout' %}bg-amber-500
-                                    {% else %}bg-gray-500{% endif %}"></span>
-                                <span class="text-xs">{{ monitor.endpoint_path }}</span>
+        <!-- Current API Status -->
+        <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10 mb-8">
+            <h2 class="text-xl font-bold mb-4">API Aktif Saat Ini</h2>
+            {% if current_api.endpoint %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold mb-2">Informasi Endpoint</h3>
+                            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
+                                <div class="mb-2">
+                                    <span class="font-medium">Nama:</span> {{ current_api.endpoint.name }}
+                                </div>
+                                <div class="mb-2">
+                                    <span class="font-medium">URL:</span> {{ current_api.endpoint.url }}
+                                </div>
+                                <div class="mb-2">
+                                    <span class="font-medium">Domain Sumber:</span> {{ current_api.endpoint.source_domain|default:"Tidak diatur" }}
+                                </div>
+                                <div class="mb-2">
+                                    <span class="font-medium">Prioritas:</span> {{ current_api.endpoint.priority }}
+                                </div>
+                                <div class="mb-2">
+                                    <span class="font-medium">Status:</span>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {% if current_api.status == 'up' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 {% elif current_api.status == 'down' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 {% elif current_api.status == 'error' or current_api.status == 'timeout' %}bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 {% else %}bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300{% endif %}">
+                                        {{ current_api.status }}
+                                    </span>
+                                </div>
+                                <div class="mb-2">
+                                    <span class="font-medium">Pesan:</span> {{ current_api.message }}
+                                </div>
+                                <div class="mb-2">
+                                    <span class="font-medium">Terakhir Digunakan:</span> {{ current_api.endpoint.last_used|date:"d M Y H:i:s"|default:"-" }}
+                                </div>
+                                <div>
+                                    <span class="font-medium">Jumlah Sukses:</span> {{ current_api.endpoint.success_count|default:"0" }}
+                                </div>
                             </div>
-                            {% empty %}
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Belum diperiksa</span>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-2">Log Error Terbaru</h3>
+                        {% if current_api.error_log %}
+                            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 max-h-60 overflow-y-auto">
+                                {% for error in current_api.error_log %}
+                                    <div class="mb-3 pb-3 border-b border-gray-200 dark:border-gray-700 last:border-0 last:mb-0 last:pb-0">
+                                        <div class="flex items-center mb-1">
+                                            <span class="inline-block w-2 h-2 rounded-full mr-2 {% if error.type == 'timeout' %}bg-amber-500 {% elif error.type == 'connection' %}bg-red-500 {% else %}bg-orange-500{% endif %}"></span>
+                                            <span class="font-medium">{{ error.type|title }}</span>
+                                            <span class="ml-auto text-xs text-gray-500">{{ error.timestamp|date:"d M Y H:i:s" }}</span>
+                                        </div>
+                                        <div class="text-sm">
+                                            <span class="font-medium">Endpoint:</span> {{ error.endpoint }}
+                                        </div>
+                                        <div class="text-sm">
+                                            <span class="font-medium">URL:</span> {{ error.url }}
+                                        </div>
+                                        <div class="text-sm">
+                                            <span class="font-medium">Pesan:</span> {{ error.message }}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 text-center">
+                                <p class="text-gray-500 dark:text-gray-400">Tidak ada error yang tercatat</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <p class="text-gray-500 dark:text-gray-400">Belum ada API yang digunakan</p>
+                </div>
+            {% endif %}
+        </div>
+        <!-- Status Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold">Total Endpoint</h3>
+                    <span class="text-2xl font-bold">{{ api_status.total_endpoints }}</span>
+                </div>
+            </div>
+            <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold">Status Up</h3>
+                    <span class="text-2xl font-bold status-up">{{ api_status.status_counts.up }}</span>
+                </div>
+                <div class="progress-bar bg-gray-200 dark:bg-gray-700 mt-2">
+                    <div class="progress-bar-fill bg-green-500"
+                         style="width: {{ status_percentages.up }}%"></div>
+                </div>
+                <div class="text-xs text-right mt-1">{{ status_percentages.up }}%</div>
+            </div>
+            <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold">Status Down</h3>
+                    <span class="text-2xl font-bold status-down">{{ api_status.status_counts.down }}</span>
+                </div>
+                <div class="progress-bar bg-gray-200 dark:bg-gray-700 mt-2">
+                    <div class="progress-bar-fill bg-red-500"
+                         style="width: {{ status_percentages.down }}%"></div>
+                </div>
+                <div class="text-xs text-right mt-1">{{ status_percentages.down }}%</div>
+            </div>
+            <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold">Status Error/Timeout</h3>
+                    <span class="text-2xl font-bold status-error">{{ api_status.status_counts.error|add:api_status.status_counts.timeout }}</span>
+                </div>
+                <div class="progress-bar bg-gray-200 dark:bg-gray-700 mt-2">
+                    <div class="progress-bar-fill bg-amber-500"
+                         style="width: {{ status_percentages.error|add:status_percentages.timeout }}%"></div>
+                </div>
+                <div class="text-xs text-right mt-1">{{ status_percentages.error|add:status_percentages.timeout }}%</div>
+            </div>
+        </div>
+        <!-- API Endpoints Table -->
+        <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10 mb-8">
+            <h2 class="text-xl font-bold mb-4">API Endpoints</h2>
+            {% if endpoints %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nama</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">URL</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Domain Sumber
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Prioritas
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Terakhir Digunakan
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Jumlah Sukses
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            {% for endpoint in endpoints %}
+                                <tr>
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ endpoint.name }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ endpoint.url }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ endpoint.source_domain|default:"Tidak diatur" }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ endpoint.priority }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ endpoint.last_used|date:"d M Y H:i:s"|default:"-" }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ endpoint.success_count|default:"0" }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        {% for monitor in endpoint.monitors.all %}
+                                            <div class="flex items-center mb-1 last:mb-0">
+                                                <span class="inline-block w-2 h-2 rounded-full mr-2 {% if monitor.status == 'up' %}bg-green-500 {% elif monitor.status == 'down' %}bg-red-500 {% elif monitor.status == 'error' or monitor.status == 'timeout' %}bg-amber-500 {% else %}bg-gray-500{% endif %}"></span>
+                                                <span class="text-xs">{{ monitor.endpoint_path }}</span>
+                                            </div>
+                                        {% empty %}
+                                            <span class="text-xs text-gray-500 dark:text-gray-400">Belum diperiksa</span>
+                                        {% endfor %}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        <a href="{% url 'admin:streamapp_apiendpoint_change' endpoint.id %}"
+                                           class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </td>
+                                </tr>
                             {% endfor %}
-                        </td>
-                        <td class="px-4 py-3 whitespace-nowrap">
-                            <a href="{% url 'admin:streamapp_apiendpoint_change' endpoint.id %}" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <p class="text-gray-500 dark:text-gray-400">Tidak ada API endpoint yang aktif.</p>
+                    <a href="{% url 'admin:streamapp_apiendpoint_add' %}"
+                       class="inline-block mt-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors">
+                        Tambah API Endpoint
+                    </a>
+                </div>
+            {% endif %}
         </div>
-        {% else %}
-        <div class="text-center py-4">
-            <p class="text-gray-500 dark:text-gray-400">Tidak ada API endpoint yang aktif.</p>
-            <a href="{% url 'admin:streamapp_apiendpoint_add' %}" class="inline-block mt-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors">
-                Tambah API Endpoint
-            </a>
+        <!-- Recent Monitors Table -->
+        <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10">
+            <h2 class="text-xl font-bold mb-4">Riwayat Pemeriksaan Terbaru</h2>
+            {% if monitors %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Endpoint
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Path</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Waktu Respons
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Terakhir Diperiksa
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            {% for monitor in monitors %}
+                                <tr class="{% if monitor.status == 'up' %}bg-status-up{% elif monitor.status == 'down' %}bg-status-down{% elif monitor.status == 'error' or monitor.status == 'timeout' %}bg-status-error{% else %}bg-status-unknown{% endif %}">
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ monitor.endpoint.name }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ monitor.endpoint_path }}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {% if monitor.status == 'up' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 {% elif monitor.status == 'down' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 {% elif monitor.status == 'error' or monitor.status == 'timeout' %}bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 {% else %}bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300{% endif %}">
+                                            {{ monitor.status }}
+                                            {% if monitor.error_message %}
+                                                <span class="tooltip ml-1" title="{{ monitor.error_message }}">
+                                                    <i class="fas fa-info-circle"></i>
+                                                </span>
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        {% if monitor.response_time %}
+                                            {{ monitor.response_time|floatformat:2 }} ms
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-4 py-3 whitespace-nowrap">{{ monitor.last_checked|date:"d M Y H:i:s" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-4">
+                    <p class="text-gray-500 dark:text-gray-400">Belum ada pemeriksaan API yang dilakukan.</p>
+                    <form method="post" class="inline-block mt-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="check_api">
+                        <button type="submit"
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors">
+                            Periksa Status API Sekarang
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
-    
-    <!-- Recent Monitors Table -->
-    <div class="bg-white/80 dark:bg-black/30 backdrop-blur-md rounded-lg shadow-md p-4 border border-primary/30 dark:border-white/10">
-        <h2 class="text-xl font-bold mb-4">Riwayat Pemeriksaan Terbaru</h2>
-        
-        {% if monitors %}
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead>
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Endpoint</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Path</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Waktu Respons</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Terakhir Diperiksa</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                    {% for monitor in monitors %}
-                    <tr class="{% if monitor.status == 'up' %}bg-status-up{% elif monitor.status == 'down' %}bg-status-down{% elif monitor.status == 'error' or monitor.status == 'timeout' %}bg-status-error{% else %}bg-status-unknown{% endif %}">
-                        <td class="px-4 py-3 whitespace-nowrap">{{ monitor.endpoint.name }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ monitor.endpoint_path }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                {% if monitor.status == 'up' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
-                                {% elif monitor.status == 'down' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
-                                {% elif monitor.status == 'error' or monitor.status == 'timeout' %}bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300
-                                {% else %}bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300{% endif %}">
-                                {{ monitor.status }}
-                                {% if monitor.error_message %}
-                                <span class="tooltip ml-1" title="{{ monitor.error_message }}">
-                                    <i class="fas fa-info-circle"></i>
-                                </span>
-                                {% endif %}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 whitespace-nowrap">
-                            {% if monitor.response_time %}
-                            {{ monitor.response_time|floatformat:2 }} ms
-                            {% else %}
-                            -
-                            {% endif %}
-                        </td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ monitor.last_checked|date:"d M Y H:i:s" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="text-center py-4">
-            <p class="text-gray-500 dark:text-gray-400">Belum ada pemeriksaan API yang dilakukan.</p>
-            <form method="post" class="inline-block mt-2">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="check_api">
-                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors">
-                    Periksa Status API Sekarang
-                </button>
-            </form>
-        </div>
-        {% endif %}
-    </div>
-</div>
 {% endblock %}
-
 {% block extra_js %}
-<script>
+    <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Handle form submission via AJAX
         const checkApiForm = document.getElementById('check-api-form');
@@ -396,5 +395,5 @@
             });
         });
     });
-</script>
+    </script>
 {% endblock %}
