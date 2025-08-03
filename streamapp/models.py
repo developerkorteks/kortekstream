@@ -16,7 +16,7 @@ class APIEndpoint(models.Model):
     """
     name = models.CharField(max_length=100, verbose_name="Nama API")
     url = models.URLField(max_length=255, verbose_name="URL API")
-    source_domain = models.CharField(max_length=255, verbose_name="Domain Sumber Data", default="v1.samehadaku.how", help_text="Domain sumber data yang digunakan untuk memformat URL gambar dan link")
+    source_domain = models.CharField(max_length=255, verbose_name="Domain Sumber Data", default="", help_text="Domain sumber data yang digunakan untuk memformat URL gambar dan link")
     priority = models.IntegerField(default=0, verbose_name="Prioritas (semakin tinggi semakin diprioritaskan)")
     is_active = models.BooleanField(default=True, verbose_name="Aktif")
     last_used = models.DateTimeField(null=True, blank=True, verbose_name="Terakhir Digunakan")
@@ -39,6 +39,7 @@ class APIEndpoint(models.Model):
         super().save(*args, **kwargs)
         # Hapus cache untuk daftar API endpoints
         cache.delete("api_endpoints")
+        cache.delete("template_filter_source_domain")
     
     @classmethod
     def get_active_endpoints(cls):
@@ -64,6 +65,26 @@ class APIEndpoint(models.Model):
             # Jika tabel belum ada (saat migrasi), kembalikan list kosong
             logger.warning("Tabel APIEndpoint belum ada (kemungkinan saat migrasi)")
             return []
+    
+    @classmethod
+    def get_current_source_domain(cls):
+        """
+        Mendapatkan domain sumber data dari endpoint yang sedang aktif.
+        """
+        try:
+            # Ambil endpoint dengan prioritas tertinggi yang aktif
+            active_endpoint = cls.objects.filter(is_active=True).order_by('-priority').first()
+            if active_endpoint and active_endpoint.source_domain:
+                return active_endpoint.source_domain
+        except Exception as e:
+            logger.error(f"Error getting current source domain: {e}")
+        
+        # Fallback ke konfigurasi default
+        try:
+            # Use sync version for sync context
+            return SiteConfiguration.get_current_source_domain_sync()
+        except:
+            return "v1.samehadaku.how"  # Fallback terakhir
 
 
 class APIMonitor(models.Model):
@@ -292,11 +313,25 @@ class SiteConfiguration(models.Model):
         return configs
 
     @classmethod
-    async def get_current_source_domain(cls):
+    def get_current_source_domain_sync(cls):
         """
-        Mendapatkan domain sumber data yang sedang aktif dari konfigurasi situs secara asynchronous.
+        Mendapatkan domain sumber data yang sedang aktif dari konfigurasi situs secara synchronous.
         """
-        return await cls.get_config('SOURCE_DOMAIN', 'v1.samehadaku.how')
+        try:
+            # Ambil endpoint dengan prioritas tertinggi yang aktif
+            active_endpoint = APIEndpoint.objects.filter(is_active=True).order_by('-priority').first()
+            if active_endpoint and active_endpoint.source_domain:
+                return active_endpoint.source_domain
+        except Exception as e:
+            logger.error(f"Error getting current source domain (sync): {e}")
+        
+        # Fallback ke konfigurasi default
+        try:
+            # Ambil konfigurasi SOURCE_DOMAIN
+            config = cls.objects.get(key='SOURCE_DOMAIN', is_active=True)
+            return config.value
+        except cls.DoesNotExist:
+            return "v1.samehadaku.how"  # Fallback terakhir
 
 
 class Advertisement(models.Model):

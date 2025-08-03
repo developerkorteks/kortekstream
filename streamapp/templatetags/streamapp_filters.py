@@ -2,7 +2,7 @@ from django import template
 from django.utils.safestring import mark_safe
 from django.core.cache import cache
 import re
-from ..models import SiteConfiguration
+from ..models import SiteConfiguration, APIEndpoint
 import logging
 from asgiref.sync import AsyncToSync, sync_to_async
 
@@ -20,7 +20,9 @@ def get_source_domain_from_cache():
     source_domain = cache.get(SOURCE_DOMAIN_CACHE_KEY)
     if source_domain is None:
         try:
-            source_domain = AsyncToSync(SiteConfiguration.get_current_source_domain)()
+            # Gunakan utility function untuk mendapatkan domain yang aktif
+            from ..utils import get_current_source_domain
+            source_domain = get_current_source_domain()
             cache.set(SOURCE_DOMAIN_CACHE_KEY, source_domain, 60*60*24)  # Cache selama 24 jam
         except Exception as e:
             logger.error(f"Error getting current source domain: {e}")

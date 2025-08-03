@@ -29,7 +29,7 @@ CSRF_TRUSTED_ORIGINS = [
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "fs5)l2(@@el_yd9t1wit&mm-9j)j-p#7blowst^mkd%b5^=*!l" 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ["nautical-bug-luv.sgp.dom.my.id","localhost", "127.0.0.1", "*", "kortekstream.sgp.dom.my.id", "mirrorfast.my.id", "kortekstream.online"]
 

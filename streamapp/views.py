@@ -866,8 +866,11 @@ async def detail_episode_video(request, episode_slug=None):
     
     try:
         logger.info(f"Menerima request untuk episode_slug: {episode_slug}")
-        # Asumsi episode_slug adalah bagian terakhir dari URL
-        episode_url = f"https://v1.samehadaku.how/{episode_slug}/"
+        # Gunakan utility function untuk mendapatkan domain yang aktif
+        from .utils import get_current_source_domain_async, build_dynamic_url_async
+        
+        source_domain = await get_current_source_domain_async()
+        episode_url = await build_dynamic_url_async(episode_slug)
         logger.info(f"URL episode yang dibangun: {episode_url}")
 
         episode_data = await get_detail_episode_data(episode_url)
