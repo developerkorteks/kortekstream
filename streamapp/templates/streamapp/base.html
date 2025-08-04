@@ -1,4 +1,5 @@
 {% load static %}
+{% load streamapp_filters %}
 <!DOCTYPE html>
 <html lang="id" class="dark scroll-smooth">
     <head>
@@ -411,7 +412,7 @@
           "@type": "ListItem",
           "position": 2,
           "name": "Anime",
-          "item": "{% if episode.navigation.all_episodes_url %}https://kortekstream.online{% url 'streamapp:detail_anime' episode.navigation.all_episodes_url|cut:'https://samehadaku.now/anime/'|cut:'/' %}{% else %}https://kortekstream.online/anime/{% endif %}"
+          "item": "{% if episode.navigation.all_episodes_url %}https://kortekstream.online/anime/{% url 'streamapp:detail_anime' episode.navigation.all_episodes_url|extract_anime_slug %}{% else %}https://kortekstream.online/anime/{% endif %}"
         },
         {
           "@type": "ListItem",

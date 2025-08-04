@@ -162,10 +162,14 @@ class Command(BaseCommand):
         try:
             endpoint = APIEndpoint.objects.get(id=endpoint_id)
             name = endpoint.name
+            
+            # Clear cache before deletion
+            endpoint._clear_all_api_cache()
+            
             endpoint.delete()
             
             self.stdout.write(
-                self.style.SUCCESS(f'Successfully deleted API endpoint: {name}')
+                self.style.SUCCESS(f'Successfully deleted API endpoint: {name} (cache cleared)')
             )
             
         except APIEndpoint.DoesNotExist:

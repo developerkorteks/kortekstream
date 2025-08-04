@@ -20,6 +20,33 @@ class APIEndpointAdmin(admin.ModelAdmin):
         }),
     )
     
+    def save_model(self, request, obj, form, change):
+        """
+        Override save_model untuk membersihkan cache saat endpoint diubah.
+        """
+        super().save_model(request, obj, form, change)
+        # Force refresh cache
+        obj._clear_all_api_cache()
+        self.message_user(request, f"API endpoint '{obj.name}' berhasil disimpan dan cache dibersihkan.")
+    
+    def delete_model(self, request, obj):
+        """
+        Override delete_model untuk membersihkan cache saat endpoint dihapus.
+        """
+        name = obj.name
+        obj._clear_all_api_cache()
+        super().delete_model(request, obj)
+        self.message_user(request, f"API endpoint '{name}' berhasil dihapus dan cache dibersihkan.")
+    
+    def delete_queryset(self, request, queryset):
+        """
+        Override delete_queryset untuk membersihkan cache saat multiple endpoints dihapus.
+        """
+        for obj in queryset:
+            obj._clear_all_api_cache()
+        super().delete_queryset(request, queryset)
+        self.message_user(request, f"{queryset.count()} API endpoint(s) berhasil dihapus dan cache dibersihkan.")
+    
     def get_deleted_objects(self, objs, request):
         """
         Override untuk menampilkan pesan yang lebih jelas tentang objek terkait yang akan dihapus.

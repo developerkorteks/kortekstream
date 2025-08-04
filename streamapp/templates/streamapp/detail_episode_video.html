@@ -106,7 +106,7 @@
                     </a>
                 </li>
                 {% if episode.navigation.all_episodes_url %}
-                    {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
+                    {% with anime_slug=episode.navigation.all_episodes_url|extract_anime_slug %}
                         <li>
                             <div class="flex items-center">
                                 <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
@@ -147,7 +147,7 @@
                     <!-- User Action Buttons -->
                     <div class="flex space-x-2 mb-4 md:mb-0">
                         {% if episode.navigation.all_episodes_url %}
-                            {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
+                            {% with anime_slug=episode.navigation.all_episodes_url|extract_anime_slug %}
                                 <button id="favorite-btn"
                                         onclick="toggleFavorite('{{ episode.title|escapejs }}', '{{ anime_slug|escapejs }}', '{{ episode.other_episodes.0.thumbnail_url|default:''|escapejs }}')"
                                         class="flex items-center px-4 py-2 light-bg backdrop-blur-sm light-text rounded-lg hover:bg-black/70 transition-colors">
@@ -167,7 +167,7 @@
                 <!-- Navigation Buttons -->
                 <div class="flex flex-wrap gap-3 mb-4">
                     {% if episode.navigation.previous_episode_url %}
-                        {% with prev_slug=episode.navigation.previous_episode_url|cut:"https://v1.samehadaku.how/"|cut:"/" %}
+                        {% with prev_slug=episode.navigation.previous_episode_url|extract_episode_slug %}
                             <a href="{% url 'streamapp:detail_episode_video' prev_slug %}"
                                class="px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
                                 <i class="fas fa-chevron-left mr-1"></i> Episode Sebelumnya
@@ -179,7 +179,7 @@
                         </span>
                     {% endif %}
                     {% if episode.navigation.all_episodes_url %}
-                        {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
+                        {% with anime_slug=episode.navigation.all_episodes_url|extract_anime_slug %}
                             <a href="{% url 'streamapp:detail_anime' anime_slug %}"
                                class="px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
                                 <i class="fas fa-list mr-1"></i> Semua Episode
@@ -187,7 +187,7 @@
                         {% endwith %}
                     {% endif %}
                     {% if episode.navigation.next_episode_url %}
-                        {% with next_slug=episode.navigation.next_episode_url|cut:"https://v1.samehadaku.how/"|cut:"/" %}
+                        {% with next_slug=episode.navigation.next_episode_url|extract_episode_slug %}
                             <a href="{% url 'streamapp:detail_episode_video' next_slug %}"
                                class="px-4 py-2 bg-primary/80 backdrop-blur-sm text-white rounded-lg hover:bg-primary transition-colors">
                                 Episode Selanjutnya <i class="fas fa-chevron-right ml-1"></i>
@@ -500,7 +500,7 @@
         
         // Tambahkan ke riwayat tontonan saat halaman dimuat
         {% if episode.navigation.all_episodes_url %}
-            {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
+            {% with anime_slug=episode.navigation.all_episodes_url|extract_anime_slug %}
                 const currentAnimeSlug = '{{ anime_slug }}';
                 const currentAnimeTitle = '{{ episode.title|escapejs }}'.split(' Episode')[0];
                 const currentAnimeCover = '{{ episode.other_episodes.0.thumbnail_url|default:""|escapejs }}';
@@ -523,7 +523,7 @@
         
         // Periksa status watchlist dan favorite
         {% if episode.navigation.all_episodes_url %}
-            {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
+            {% with anime_slug=episode.navigation.all_episodes_url|extract_anime_slug %}
                 // Periksa status watchlist dan favorite
                 updateWatchlistButton('{{ anime_slug }}');
                 updateFavoriteButton('{{ anime_slug }}');
@@ -545,7 +545,7 @@
                         const currentEpisodeTitle = '{{ episode.title|escapejs }}' || 'Episode Tidak Diketahui';
                         
                         {% if episode.navigation.all_episodes_url %}
-                            {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
+                            {% with anime_slug=episode.navigation.all_episodes_url|extract_anime_slug %}
                                 const currentAnimeSlug = '{{ anime_slug }}';
                                 const currentAnimeTitle = '{{ episode.title|escapejs }}'.split(' Episode')[0];
                                 const currentAnimeCover = '{{ episode.other_episodes.0.thumbnail_url|default:""|escapejs }}';
@@ -582,7 +582,7 @@
                             const currentEpisodeTitle = '{{ episode.title|escapejs }}' || 'Episode Tidak Diketahui';
                             
                             {% if episode.navigation.all_episodes_url %}
-                                {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
+                                {% with anime_slug=episode.navigation.all_episodes_url|extract_anime_slug %}
                                     const currentAnimeSlug = '{{ anime_slug }}';
                                     const currentAnimeTitle = '{{ episode.title|escapejs }}'.split(' Episode')[0];
                                     const currentAnimeCover = '{{ episode.other_episodes.0.thumbnail_url|default:""|escapejs }}';
@@ -624,7 +624,7 @@
                             console.log(`Video telah diputar selama 30 detik, menambahkan ke riwayat: ${currentEpisodeTitle}`);
                             
                             {% if episode.navigation.all_episodes_url %}
-                                {% with anime_slug=episode.navigation.all_episodes_url|cut:"https://v1.samehadaku.how/anime/"|cut:"/" %}
+                                {% with anime_slug=episode.navigation.all_episodes_url|extract_anime_slug %}
                                     const currentAnimeSlug = '{{ anime_slug }}';
                                     const currentAnimeTitle = '{{ episode.title|escapejs }}'.split(' Episode')[0];
                                     const currentAnimeCover = '{{ episode.other_episodes.0.thumbnail_url|default:""|escapejs }}';
@@ -669,9 +669,8 @@
         let fixedCover = cover;
         
         // Periksa apakah URL cover menggunakan format yang salah (https:v1.samehadaku.how tanpa //)
-        if (fixedCover.startsWith('https:v1.samehadaku.how')) {
-            console.log(`Format URL cover tidak valid untuk ${title}, memperbaiki: ${fixedCover}`);
-            fixedCover = fixedCover.replace('https:v1.samehadaku.how', 'https://v1.samehadaku.how');
+        if (fixedCover.match(/^https:[^/]+/)) {
+            fixedCover = fixedCover.replace(/^https:[^/]+/, 'https://'+fixedCover.split('/')[2]);
         }
         
         // Pastikan URL cover valid
@@ -974,9 +973,8 @@
             }
             
             // Periksa apakah URL cover menggunakan format yang salah (https:v1.samehadaku.how tanpa //)
-            if (cover && cover.startsWith('https:v1.samehadaku.how')) {
-                console.log("Format URL cover tidak valid, memperbaiki:", cover);
-                cover = cover.replace('https:v1.samehadaku.how', 'https://v1.samehadaku.how');
+            if (cover && cover.match(/^https:[^/]+/)) {
+                cover = cover.replace(/^https:[^/]+/, 'https://'+cover.split('/')[2]);
             }
             
             // Periksa apakah file logo.png ada, jika tidak gunakan kortekstream-logo.png

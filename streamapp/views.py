@@ -258,10 +258,24 @@ def _transform_anime_detail_data(raw_data: dict, anime_slug: str) -> dict:
             "episode_list": []
         }
 
+    # Coba dapatkan cover image dari berbagai sumber
+    cover_url = raw_data.get('url_cover')
+    
+    # Jika url_cover adalah placeholder, coba ambil dari recommendations
+    if cover_url and 'placeholder' in cover_url and raw_data.get('recommendations'):
+        for rec in raw_data.get('recommendations', []):
+            if rec.get('cover_url') and 'placeholder' not in rec.get('cover_url', ''):
+                cover_url = rec.get('cover_url')
+                break
+    
+    # Jika masih tidak ada, gunakan default
+    if not cover_url or 'placeholder' in cover_url:
+        cover_url = "/static/img/kortekstream-logo.png"
+    
     return {
         "title": raw_data.get('judul', f"Anime {anime_slug}"),
-        "thumbnail_url": raw_data.get('url_cover') or raw_data.get('cover', "/static/img/kortekstream-logo.png"),
-        "url_cover": raw_data.get('url_cover', "/static/img/kortekstream-logo.png"),
+        "thumbnail_url": cover_url,
+        "url_cover": cover_url,
         "sinopsis": raw_data.get('sinopsis', "Sinopsis tidak tersedia."),
         "genres": raw_data.get('genre', []) or raw_data.get('genres', []),
         "details": raw_data.get('details', {}),
@@ -312,22 +326,20 @@ async def index(request):
         logger.info("Mengambil data home dari API")
         home_data = await asyncio.to_thread(get_home_data)
         
-        # Jika hasil None atau empty dict, lanjutkan ke fallback
-        if not home_data:
-            logger.warning("Data home kosong, mencoba fallback")
-            raise Exception("Data home kosong")
-        
         # Periksa apakah hasil memiliki struktur baru dengan confidence score
-        if isinstance(home_data, dict) and 'confidence_score' in home_data and 'data' in home_data:
+        if isinstance(home_data, dict) and 'confidence_score' in home_data:
             confidence = home_data.get('confidence_score', 0)
             logger.info(f"Mendapatkan data home dengan confidence score: {confidence}")
             
-            # Periksa apakah data kosong
-            if not home_data.get('data'):
-                logger.warning(f"Data home kosong meskipun API merespons dengan confidence score: {confidence}")
-                raise Exception("Data home kosong meskipun API merespons")
-                
-            home_data = home_data['data']
+            # Jika ada field 'data', gunakan itu (gomunime format)
+            if 'data' in home_data:
+                if not home_data.get('data'):
+                    logger.warning(f"Data home kosong meskipun API merespons dengan confidence score: {confidence}")
+                    raise Exception("Data home kosong meskipun API merespons")
+                home_data = home_data['data']
+            # Jika tidak ada field 'data', gunakan data langsung (samehadaku format)
+            else:
+                logger.info("Menggunakan data langsung dari API (samehadaku format)")
         
         # Periksa apakah home_data adalah dictionary
         if not isinstance(home_data, dict):
@@ -430,9 +442,16 @@ async def get_all_anime_terbaru_data(page=1, max_pages=5):
         result = await asyncio.to_thread(get_anime_terbaru, page)
         
         # Periksa apakah hasil memiliki struktur baru dengan confidence score
-        if isinstance(result, dict) and 'confidence_score' in result and 'data' in result:
-            logger.info(f"Mendapatkan data anime terbaru halaman {page} dengan confidence score: {result['confidence_score']}")
-            result = result['data']
+        if isinstance(result, dict) and 'confidence_score' in result:
+            confidence = result.get('confidence_score', 0)
+            logger.info(f"Mendapatkan data anime terbaru halaman {page} dengan confidence score: {confidence}")
+            
+            # Jika ada field 'data', gunakan itu (gomunime format)
+            if 'data' in result:
+                result = result['data']
+            # Jika tidak ada field 'data', gunakan data langsung (samehadaku format)
+            else:
+                logger.info("Menggunakan data langsung dari API (samehadaku format)")
         
         # Log untuk debugging
         logger.info(f"Anime terbaru halaman {page}: {len(result) if result else 0} item")
@@ -485,9 +504,16 @@ async def get_all_anime_terbaru_data(page=1, max_pages=5):
             page_data = await asyncio.to_thread(get_anime_terbaru, p)
             
             # Periksa apakah hasil memiliki struktur baru dengan confidence score
-            if isinstance(page_data, dict) and 'confidence_score' in page_data and 'data' in page_data:
-                logger.info(f"Mendapatkan data anime terbaru halaman {p} dengan confidence score: {page_data['confidence_score']}")
-                page_data = page_data['data']
+            if isinstance(page_data, dict) and 'confidence_score' in page_data:
+                confidence = page_data.get('confidence_score', 0)
+                logger.info(f"Mendapatkan data anime terbaru halaman {p} dengan confidence score: {confidence}")
+                
+                # Jika ada field 'data', gunakan itu (gomunime format)
+                if 'data' in page_data:
+                    page_data = page_data['data']
+                # Jika tidak ada field 'data', gunakan data langsung (samehadaku format)
+                else:
+                    logger.info("Menggunakan data langsung dari API (samehadaku format)")
             
             # Log untuk debugging
             logger.info(f"Anime terbaru halaman {p}: {len(page_data) if page_data else 0} item")
@@ -589,9 +615,16 @@ async def get_jadwal_rilis_data(day=None):
         result = await asyncio.to_thread(get_jadwal_rilis, day)
         
         # Periksa apakah hasil memiliki struktur baru dengan confidence score
-        if isinstance(result, dict) and 'confidence_score' in result and 'data' in result:
-            logger.info(f"Mendapatkan data jadwal rilis dengan confidence score: {result['confidence_score']}")
-            result = result['data']
+        if isinstance(result, dict) and 'confidence_score' in result:
+            confidence = result.get('confidence_score', 0)
+            logger.info(f"Mendapatkan data jadwal rilis dengan confidence score: {confidence}")
+            
+            # Jika ada field 'data', gunakan itu (gomunime format)
+            if 'data' in result:
+                result = result['data']
+            # Jika tidak ada field 'data', gunakan data langsung (samehadaku format)
+            else:
+                logger.info("Menggunakan data langsung dari API (samehadaku format)")
         
         # Validasi hasil
         if result is None:
@@ -700,9 +733,16 @@ async def get_all_movie_data(page=1):
         movie_data = await asyncio.to_thread(get_movie_list, page)
         
         # Periksa apakah hasil memiliki struktur baru dengan confidence score
-        if isinstance(movie_data, dict) and 'confidence_score' in movie_data and 'data' in movie_data:
-            logger.info(f"Mendapatkan data movie halaman {page} dengan confidence score: {movie_data['confidence_score']}")
-            movie_data = movie_data['data']
+        if isinstance(movie_data, dict) and 'confidence_score' in movie_data:
+            confidence = movie_data.get('confidence_score', 0)
+            logger.info(f"Mendapatkan data movie halaman {page} dengan confidence score: {confidence}")
+            
+            # Jika ada field 'data', gunakan itu (gomunime format)
+            if 'data' in movie_data:
+                movie_data = movie_data['data']
+            # Jika tidak ada field 'data', gunakan data langsung (samehadaku format)
+            else:
+                logger.info("Menggunakan data langsung dari API (samehadaku format)")
         
         # Log untuk debugging
         logger.info(f"Movie halaman {page}: {len(movie_data) if movie_data else 0} item")
@@ -898,9 +938,11 @@ async def detail_episode_video(request, episode_slug=None):
 
     except Exception as e:
         logger.error(f"Error di view detail_episode_video: {e}")
-        context = {'error': 'Terjadi kesalahan fatal saat memuat data.'}
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        context = {'error': f'Terjadi kesalahan fatal saat memuat data: {str(e)}'}
         response = render(request, 'streamapp/detail_episode_video.html', context)
-
+    
     return response
 
 async def get_search_results(query, max_results=20):
@@ -918,7 +960,26 @@ async def get_search_results(query, max_results=20):
     # Jika tidak ada di cache, lakukan pencarian menggunakan API client
     try:
         # Gunakan asyncio.to_thread untuk menjalankan fungsi yang blocking di thread terpisah
-        search_results = await asyncio.to_thread(search_anime, query)
+        raw_search_results = await asyncio.to_thread(search_anime, query)
+        
+        # Handle struktur data baru dari API
+        if isinstance(raw_search_results, dict):
+            # Jika hasil memiliki struktur baru dengan confidence_score dan data
+            if 'confidence_score' in raw_search_results and 'data' in raw_search_results:
+                confidence = raw_search_results.get('confidence_score', 0)
+                logger.info(f"Search results dengan confidence score: {confidence}")
+                search_results = raw_search_results.get('data', [])
+            else:
+                # Jika struktur lama, gunakan langsung
+                search_results = raw_search_results
+        else:
+            # Jika bukan dict, anggap sebagai list
+            search_results = raw_search_results
+        
+        # Pastikan search_results adalah list
+        if not isinstance(search_results, list):
+            logger.warning(f"Search results bukan list: {type(search_results)}")
+            search_results = []
         
         # Batasi jumlah hasil jika diperlukan
         if search_results and len(search_results) > max_results:

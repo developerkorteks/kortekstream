@@ -10,9 +10,148 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
+def normalize_api_response(data: Any, endpoint_name: str = "unknown") -> Any:
+    """
+    Normalize API response to handle different JSON structures between gomunime and samehadaku.
+    
+    Args:
+        data: Raw API response data
+        endpoint_name: Name of the API endpoint for logging
+        
+    Returns:
+        Normalized data structure
+    """
+    if not data:
+        return data
+    
+    # Jika data adalah dict dan memiliki confidence_score
+    if isinstance(data, dict) and 'confidence_score' in data:
+        confidence = data.get('confidence_score', 0)
+        logger.info(f"API {endpoint_name} response with confidence score: {confidence}")
+        
+        # Jika ada field 'data', gunakan itu (gomunime format)
+        if 'data' in data:
+            logger.info(f"Using gomunime format (with 'data' wrapper) for {endpoint_name}")
+            return data.get('data', {})
+        # Jika tidak ada field 'data', gunakan data langsung (samehadaku format)
+        else:
+            logger.info(f"Using samehadaku format (direct data) for {endpoint_name}")
+            return data
+    
+    # Jika data bukan dict atau tidak memiliki confidence_score, kembalikan as-is
+    return data
+
+def check_endpoint_health(endpoint):
+    """
+    Check if endpoint is actually working by testing health endpoint.
+    
+    Args:
+        endpoint: APIEndpoint object or TempEndpoint
+        
+    Returns:
+        bool: True if endpoint is working, False otherwise
+    """
+    try:
+        # Try the base URL with /health first
+        base_url = endpoint.url.rstrip('/')
+        if base_url.endswith('/api/v1'):
+            base_url = base_url.replace('/api/v1', '')
+        
+        health_url = f"{base_url}/health"
+        logger.info(f"Checking health of endpoint {endpoint.name} at {health_url}")
+        response = requests.get(health_url, timeout=5)
+        
+        if response.status_code == 200:
+            try:
+                health_data = response.json()
+                if health_data.get('status') == 'ok':
+                    logger.info(f"Endpoint {endpoint.name} is healthy")
+                    return True
+            except json.JSONDecodeError:
+                logger.warning(f"Endpoint {endpoint.name} returned non-JSON health response")
+                return False
+        
+        logger.warning(f"Endpoint {endpoint.name} health check failed with status {response.status_code}")
+        return False
+    except Exception as e:
+        logger.warning(f"Endpoint {endpoint.name} health check failed: {e}")
+        return False
+
+def should_fallback(response_data, confidence_threshold=0.5):
+    """
+    Check if we should fallback based on confidence score or data quality.
+    
+    Args:
+        response_data: API response data
+        confidence_threshold: Minimum confidence score required
+        
+    Returns:
+        bool: True if should fallback, False otherwise
+    """
+    if not response_data:
+        logger.info("Response data is empty, should fallback")
+        return True
+    
+    # Check if response has confidence_score
+    if isinstance(response_data, dict) and 'confidence_score' in response_data:
+        confidence = response_data.get('confidence_score', 0)
+        logger.info(f"Response has confidence_score: {confidence}")
+        
+        if confidence < confidence_threshold:
+            logger.info(f"Confidence score {confidence} below threshold {confidence_threshold}, should fallback")
+            return True
+        
+        # Check if data field exists and has content
+        if 'data' in response_data:
+            data = response_data.get('data')
+            if not data or (isinstance(data, list) and len(data) == 0):
+                logger.info("Data field is empty, should fallback")
+                return True
+        else:
+            # Direct data format - check if main data is empty
+            if isinstance(response_data, dict):
+                # Remove confidence_score and other metadata
+                data_keys = [k for k in response_data.keys() if k not in ['confidence_score', 'message', 'source', 'error']]
+                if not data_keys:
+                    logger.info("No data keys found, should fallback")
+                    return True
+                
+                # Check if any data key has content
+                has_content = False
+                for key in data_keys:
+                    value = response_data.get(key)
+                    if value and (not isinstance(value, list) or len(value) > 0):
+                        has_content = True
+                        break
+                
+                if not has_content:
+                    logger.info("No content in data keys, should fallback")
+                    return True
+    
+    return False
+
+def clear_cache_on_failure(endpoint_name):
+    """
+    Clear cache when endpoint fails to ensure fresh data on next request.
+    
+    Args:
+        endpoint_name: Name of the failed endpoint
+    """
+    cache_keys = [
+        f"api_response_{endpoint_name}",
+        "api_endpoints",
+        "template_filter_source_domain",
+        "current_source_domain"
+    ]
+    
+    for key in cache_keys:
+        cache.delete(key)
+        logger.info(f"Cleared cache key: {key}")
+
 def get_api_endpoints():
     """
     Get active API endpoints from database, ordered by priority.
+    Includes health checking to filter out non-working endpoints.
     
     Returns:
         List of APIEndpoint objects
@@ -21,46 +160,46 @@ def get_api_endpoints():
     from .models import APIEndpoint
     from django.db.utils import OperationalError
     
-    # Selalu ambil dari database untuk memastikan data terbaru
-    # Ini memastikan perubahan status aktif langsung terlihat
     try:
-        # Ambil langsung dari database, jangan gunakan cache
-        endpoints = list(APIEndpoint.objects.filter(is_active=True).order_by('-priority'))
+        # Force refresh cache to get latest data
+        APIEndpoint.force_refresh_cache()
         
-        # Filter endpoint yang tidak berfungsi
+        # Get all active endpoints from database
+        all_endpoints = list(APIEndpoint.objects.filter(is_active=True).order_by('-priority'))
+        logger.info(f"Found {len(all_endpoints)} active endpoints in database")
+        
+        # Health check all endpoints
         working_endpoints = []
-        for endpoint in endpoints:
-            # Periksa apakah endpoint berfungsi dengan mencoba mengakses /anime-terbaru
-            try:
-                url = f"{endpoint.url.rstrip('/')}/anime-terbaru"
-                logger.info(f"Checking if endpoint {endpoint.name} ({url}) is working...")
-                response = requests.get(url, timeout=3)
-                if response.status_code >= 200 and response.status_code < 300:
-                    logger.info(f"Endpoint {endpoint.name} ({url}) is working")
-                    working_endpoints.append(endpoint)
-                else:
-                    logger.warning(f"Endpoint {endpoint.name} ({url}) returned status code {response.status_code}")
-            except Exception as e:
-                logger.warning(f"Endpoint {endpoint.name} ({endpoint.url}) is not working: {e}")
+        failed_endpoints = []
         
-        # Jika ada endpoint yang berfungsi, gunakan itu
+        for endpoint in all_endpoints:
+            if check_endpoint_health(endpoint):
+                working_endpoints.append(endpoint)
+            else:
+                failed_endpoints.append(endpoint)
+                # Mark endpoint as inactive if it's consistently failing
+                logger.warning(f"Marking endpoint {endpoint.name} as inactive due to health check failure")
+                endpoint.is_active = False
+                endpoint.save()
+        
+        logger.info(f"Health check results: {len(working_endpoints)} working, {len(failed_endpoints)} failed")
+        
+        # Use working endpoints if available
         if working_endpoints:
             logger.info(f"Using {len(working_endpoints)} working endpoints")
-            endpoints = working_endpoints
+            return working_endpoints
         
-        # Jika tidak ada endpoint aktif, gunakan default dari settings
-        if not endpoints:
-            default_url = getattr(settings, "API_BASE_URL", "http://localhost:8001/api/v1")
-            logger.warning(f"No active API endpoints found in database, using default: {default_url}")
-            endpoints = [create_temp_endpoint(default_url)]
+        # If no working endpoints, use default
+        default_url = getattr(settings, "API_BASE_URL", "http://localhost:8080/api/v1")
+        logger.warning(f"No working API endpoints found, using default: {default_url}")
+        return [create_temp_endpoint(default_url)]
+        
     except OperationalError as e:
-        # Handle case when table doesn't exist yet (during migrations)
-        logger.warning(f"Error accessing APIEndpoint table (likely during migrations): {e}")
-        default_url = getattr(settings, "API_BASE_URL", "http://localhost:8001/api/v1")
-        logger.info(f"Using default API endpoint: {default_url}")
-        endpoints = [create_temp_endpoint(default_url)]
-    
-    return endpoints
+        logger.error(f"Database error getting API endpoints: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Error getting API endpoints: {e}")
+        return []
 
 def create_temp_endpoint(url, name="Default", source_domain=None):
     """
@@ -78,7 +217,17 @@ def create_temp_endpoint(url, name="Default", source_domain=None):
         def __init__(self, url, name, source_domain):
             self.url = url
             self.name = name
-            self.source_domain = source_domain or "v1.samehadaku.how"
+            self.source_domain = source_domain or "gomunime.co"
+            # Add missing attributes that are expected by the monitoring system
+            self.priority = 0  # Default priority for temp endpoints
+            self.is_active = True
+            self.last_used = None
+            self.success_count = 0
+            self.id = None  # Temp endpoints don't have database ID
+        
+        def save(self):
+            """Dummy save method for temp endpoints - they don't persist to database"""
+            pass
     
     return TempEndpoint(url, name, source_domain)
 
@@ -118,7 +267,13 @@ class FallbackAPIClient:
         """
         # Clear all Django cache immediately on any failure that triggers a fallback.
         logger.warning("API failure detected. Clearing all cache to prevent stale data.")
-        cache.clear()
+        
+        # Clear all caches comprehensively
+        from .models import APIEndpoint
+        APIEndpoint.force_refresh_cache()
+        
+        # Force refresh endpoints list
+        self.refresh_endpoints()
 
         if self.current_endpoint_index + 1 < len(self.endpoints):
             old_api_name = self.endpoints[self.current_endpoint_index].name
@@ -182,7 +337,7 @@ class FallbackAPIClient:
 
     def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None, is_retry: bool = False) -> Any:
         """
-        Make a GET request to the API with fallback support.
+        Make a GET request to the API with improved fallback support.
         
         Args:
             endpoint: API endpoint path
@@ -195,7 +350,8 @@ class FallbackAPIClient:
         Raises:
             Exception: If all endpoints fail
         """
-        if not self.endpoints:
+        if not is_retry:
+            # Force refresh endpoints on first attempt
             self.refresh_endpoints()
         
         if not self.endpoints:
@@ -204,9 +360,9 @@ class FallbackAPIClient:
         # Get current endpoint
         current_endpoint = self.get_current_endpoint()
         if not current_endpoint:
-            raise Exception("No active API endpoints")
+            raise Exception("No current endpoint available")
         
-        # Build URL
+        # Build URL with current endpoint
         url = f"{current_endpoint.url.rstrip('/')}/{endpoint.lstrip('/')}"
         
         # Prepare request parameters
@@ -216,41 +372,55 @@ class FallbackAPIClient:
             logger.info(f"Making request to '{current_endpoint.name}' at {url}")
             response = self.session.get(url, params=request_params, timeout=(self.connect_timeout, self.read_timeout))
             
-            # Update endpoint usage
-            current_endpoint.last_used = timezone.now()
-            current_endpoint.success_count += 1
-            current_endpoint.save()
+            # Handle response and check for fallback conditions
+            response_data = self._handle_response(response)
+            
+            # Check if we should fallback based on confidence score or data quality
+            if should_fallback(response_data):
+                logger.warning(f"Response from {current_endpoint.name} has low confidence or empty data, trying fallback")
+                # Clear cache and try next endpoint
+                clear_cache_on_failure(current_endpoint.name)
+                if not is_retry:
+                    self._fallback_to_next_endpoint()
+                    return self.get(endpoint, params, is_retry=True)
+                else:
+                    # If this is a retry and we still have endpoints, try the next one
+                    if self.current_endpoint_index < len(self.endpoints) - 1:
+                        self._fallback_to_next_endpoint()
+                        return self.get(endpoint, params, is_retry=True)
+                    else:
+                        # All endpoints have failed
+                        logger.error("All API endpoints failed or returned low quality data.")
+                        raise Exception("All API endpoints failed or returned low quality data.")
+            
+            # Success - update endpoint usage
+            if hasattr(current_endpoint, 'save'):
+                current_endpoint.last_used = timezone.now()
+                current_endpoint.success_count += 1
+                current_endpoint.save()
             
             # Update API monitor
             self._update_api_monitor(current_endpoint, endpoint, "success", response_time=None)
             
-            return self._handle_response(response)
-            
+            logger.info(f"Successfully got data from {current_endpoint.name} for endpoint {endpoint}")
+            return response_data
+
         except Exception as e:
             logger.warning(f"Request to '{current_endpoint.name}' failed: {e}")
-            
-            # Update API monitor with error
             self._update_api_monitor(current_endpoint, endpoint, "error", error_message=str(e))
             
-            # Try next endpoint if not already retrying
-            if not is_retry:
-                self._fallback_to_next_endpoint()
+            if self._fallback_to_next_endpoint():
+                # Automatically retry the request with the new endpoint
                 return self.get(endpoint, params, is_retry=True)
             else:
-                # If this is a retry and we still have endpoints, try the next one
-                if self.current_endpoint_index < len(self.endpoints) - 1:
-                    self._fallback_to_next_endpoint()
-                    return self.get(endpoint, params, is_retry=True)
-                else:
-                    # All endpoints have failed
-                    logger.error("All API endpoints failed.")
-                    raise Exception("All API endpoints failed.")
+                raise Exception("All API endpoints failed.")
 
     def post(self, endpoint: str, data: Optional[Dict[str, Any]] = None, is_retry: bool = False) -> Any:
         """
         Make a POST request. Handles fallbacks and retries automatically.
         """
         if not is_retry:
+            # Force refresh endpoints on first attempt
             self.refresh_endpoints()
 
         api_endpoint = self.get_current_endpoint()
@@ -379,13 +549,16 @@ def get_jadwal_rilis(day: Optional[str] = None) -> Union[Dict[str, List[Dict[str
         logger.info(f"Mengambil jadwal rilis{' untuk hari ' + day if day else ''}")
         result = api_client.get(endpoint)
         
+        # Normalize response untuk menangani perbedaan struktur JSON
+        normalized_result = normalize_api_response(result, endpoint)
+        
         # Validasi hasil
-        if day is None and not result:
+        if day is None and not normalized_result:
             logger.warning("API mengembalikan data kosong untuk jadwal rilis")
-        elif day and not result:
+        elif day and not normalized_result:
             logger.warning(f"API mengembalikan data kosong untuk jadwal rilis hari {day}")
         
-        return result
+        return normalized_result
     except Exception as e:
         logger.error(f"Error getting jadwal rilis: {e}", exc_info=True)
         import traceback
@@ -407,13 +580,16 @@ def get_anime_terbaru(page: int = 1) -> List[Dict[str, Any]]:
         logger.info(f"Mengambil anime terbaru halaman {page}")
         result = api_client.get("anime-terbaru", params={"page": page})
         
+        # Normalize response untuk menangani perbedaan struktur JSON
+        normalized_result = normalize_api_response(result, "anime-terbaru")
+        
         # Validasi hasil
-        if not result:
+        if not normalized_result:
             logger.warning(f"API mengembalikan data kosong untuk anime terbaru halaman {page}")
         else:
-            logger.info(f"Berhasil mendapatkan {len(result)} anime terbaru")
+            logger.info(f"Berhasil mendapatkan {len(normalized_result)} anime terbaru")
         
-        return result
+        return normalized_result
     except Exception as e:
         logger.error(f"Error getting anime terbaru: {e}", exc_info=True)
         import traceback
@@ -435,13 +611,16 @@ def get_movie_list(page: int = 1) -> List[Dict[str, Any]]:
         logger.info(f"Mengambil daftar movie halaman {page}")
         result = api_client.get("movie", params={"page": page})
         
+        # Normalize response untuk menangani perbedaan struktur JSON
+        normalized_result = normalize_api_response(result, "movie")
+        
         # Validasi hasil
-        if not result:
+        if not normalized_result:
             logger.warning(f"API mengembalikan data kosong untuk daftar movie halaman {page}")
         else:
-            logger.info(f"Berhasil mendapatkan {len(result)} movie")
+            logger.info(f"Berhasil mendapatkan {len(normalized_result)} movie")
         
-        return result
+        return normalized_result
     except Exception as e:
         logger.error(f"Error getting movie list: {e}", exc_info=True)
         import traceback
@@ -463,9 +642,12 @@ def get_anime_detail(anime_slug: str) -> Dict[str, Any]:
         logger.info(f"Mengambil detail anime dengan slug: {anime_slug}")
         result = api_client.get("anime-detail", params={"anime_slug": anime_slug})
         
-        if result:
+        # Normalize response untuk menangani perbedaan struktur JSON
+        normalized_result = normalize_api_response(result, "anime-detail")
+        
+        if normalized_result:
             logger.info(f"Berhasil mendapatkan data anime: {anime_slug}")
-            return result
+            return normalized_result
         else:
             logger.warning(f"API mengembalikan data kosong untuk anime: {anime_slug}")
             logger.info(f"Data anime tidak ditemukan untuk slug: {anime_slug}")
@@ -514,9 +696,13 @@ def get_episode_detail(episode_url: str) -> Dict[str, Any]:
     try:
         logger.info(f"Mengambil detail episode dengan URL: {episode_url}")
         result = api_client.get("episode-detail", params={"episode_url": episode_url})
-        if not result:
+        
+        # Normalize response untuk menangani perbedaan struktur JSON
+        normalized_result = normalize_api_response(result, "episode-detail")
+        
+        if not normalized_result:
             logger.warning(f"API mengembalikan data kosong untuk episode: {episode_url}")
-        return result
+        return normalized_result
     except Exception as e:
         logger.error(f"Error getting episode detail: {e}", exc_info=True)
         import traceback
@@ -537,9 +723,13 @@ def search_anime(query: str) -> List[Dict[str, Any]]:
     try:
         logger.info(f"Mencari anime dengan query: {query}")
         result = api_client.get("search", params={"query": query})
-        if not result:
+        
+        # Normalize response untuk menangani perbedaan struktur JSON
+        normalized_result = normalize_api_response(result, "search")
+        
+        if not normalized_result:
             logger.warning(f"API mengembalikan data kosong untuk pencarian: {query}")
-        return result
+        return normalized_result
     except Exception as e:
         logger.error(f"Error searching anime: {e}", exc_info=True)
         import traceback
@@ -558,17 +748,20 @@ def get_home_data() -> Dict[str, Any]:
         logger.info("Mengambil data halaman utama")
         result = api_client.get("home")
         
+        # Normalize response untuk menangani perbedaan struktur JSON
+        normalized_result = normalize_api_response(result, "home")
+        
         # Validasi hasil
-        if not result:
+        if not normalized_result:
             logger.warning("API mengembalikan data kosong untuk halaman utama")
         else:
             # Log jumlah item yang diterima untuk setiap bagian
-            logger.info(f"Data diterima - Top 10: {len(result.get('top10', []))}, " +
-                       f"New Eps: {len(result.get('new_eps', []))}, " +
-                       f"Movies: {len(result.get('movies', []))}, " +
-                       f"Jadwal: {len(result.get('jadwal_rilis', {}).keys())}")
+            logger.info(f"Data diterima - Top 10: {len(normalized_result.get('top10', []))}, " +
+                       f"New Eps: {len(normalized_result.get('new_eps', []))}, " +
+                       f"Movies: {len(normalized_result.get('movies', []))}, " +
+                       f"Jadwal: {len(normalized_result.get('jadwal_rilis', {}).keys())}")
         
-        return result
+        return normalized_result
     except Exception as e:
         logger.error(f"Error getting home data: {e}", exc_info=True)
         import traceback

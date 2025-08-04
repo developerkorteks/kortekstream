@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Cache untuk menyimpan domain sumber data
 SOURCE_DOMAIN_CACHE_KEY = 'template_filter_source_domain'
-DEFAULT_SOURCE_DOMAIN = 'v1.samehadaku.how'
+DEFAULT_SOURCE_DOMAIN = 'gomunime.co'
 
 def get_source_domain_from_cache():
     """
@@ -49,13 +49,22 @@ def extract_anime_slug(url):
     
     # Hapus protokol dan domain dari URL
     url = re.sub(r'^https?://', '', url)
-    url = re.sub(r'^' + re.escape(source_domain), '', url)
+    
+    # Hapus domain dari URL (support multiple domains)
+    url = re.sub(r'^[^/]+', '', url)
     
     # Hapus 'anime/' dari URL
     url = re.sub(r'^/?anime/', '', url)
     
     # Hapus trailing slash
     url = url.rstrip('/')
+    
+    # Hapus leading slash
+    url = url.lstrip('/')
+    
+    # Pastikan tidak mengembalikan string kosong
+    if not url:
+        return "unknown-anime"
     
     return url
 
@@ -79,13 +88,19 @@ def extract_episode_slug(url):
     
     # Hapus protokol dan domain dari URL
     url = re.sub(r'^https?://', '', url)
-    url = re.sub(r'^' + re.escape(source_domain), '', url)
+    
+    # Hapus domain dari URL (support multiple domains)
+    url = re.sub(r'^[^/]+', '', url)
     
     # Hapus trailing slash
     url = url.rstrip('/')
     
     # Hapus leading slash
     url = url.lstrip('/')
+    
+    # Pastikan tidak mengembalikan string kosong
+    if not url:
+        return "unknown-episode"
     
     return url
 

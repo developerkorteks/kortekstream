@@ -377,9 +377,9 @@
             // Hapus prefix /episode/ jika ada
             normalizedSlug = normalizedSlug.replace(/^\/episode\//, '');
             
-            // Tangani kasus URL dengan format yang salah (https:v1.samehadaku.how tanpa //)
-            if (normalizedSlug.startsWith('https:v1.samehadaku.how')) {
-                normalizedSlug = normalizedSlug.replace('https:v1.samehadaku.how', '');
+            // Tangani kasus URL dengan format yang salah (https:domain tanpa //)
+            if (normalizedSlug.match(/^https:[^/]+/)) {
+                normalizedSlug = normalizedSlug.replace(/^https:[^/]+/, '');
             }
             
             // Hapus domain lainnya jika ada
@@ -405,9 +405,9 @@
                 // Hapus prefix /episode/ jika ada
                 normalizedSlug = normalizedSlug.replace(/^\/episode\//, '');
                 
-                // Tangani kasus URL dengan format yang salah (https:v1.samehadaku.how tanpa //)
-                if (normalizedSlug.startsWith('https:v1.samehadaku.how')) {
-                    normalizedSlug = normalizedSlug.replace('https:v1.samehadaku.how', '');
+                // Tangani kasus URL dengan format yang salah (https:domain tanpa //)
+                if (normalizedSlug.match(/^https:[^/]+/)) {
+                    normalizedSlug = normalizedSlug.replace(/^https:[^/]+/, '');
                 }
                 
                 // Hapus domain lainnya jika ada
@@ -524,10 +524,9 @@
         // Perbaiki format URL jika perlu
         let fixedCover = cover;
         
-        // Periksa apakah URL cover menggunakan format yang salah (https:v1.samehadaku.how tanpa //)
-        if (fixedCover.startsWith('https:v1.samehadaku.how')) {
-            console.log(`Format URL cover tidak valid untuk ${title}, memperbaiki: ${fixedCover}`);
-            fixedCover = fixedCover.replace('https:v1.samehadaku.how', 'https://v1.samehadaku.how');
+        // Periksa apakah URL cover menggunakan format yang salah (https:domain tanpa //)
+        if (fixedCover.match(/^https:[^/]+/)) {
+            fixedCover = fixedCover.replace(/^https:[^/]+/, 'https://'+fixedCover.split('/')[2]);
         }
         
         // Pastikan URL cover valid

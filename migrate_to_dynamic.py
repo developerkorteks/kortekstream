@@ -80,17 +80,10 @@ def setup_default_endpoints():
             # Create default endpoints
             endpoints = [
                 {
-                    'name': 'Samehadaku Primary',
-                    'url': 'https://api.samehadaku.how/api/v1',
-                    'source_domain': 'v1.samehadaku.how',
-                    'priority': 10,
-                    'is_active': True
-                },
-                {
-                    'name': 'Samehadaku Backup',
-                    'url': 'https://api.samehadaku.how/api/v2',
-                    'source_domain': 'v1.samehadaku.how',
-                    'priority': 5,
+                    'name': 'Gomunime Primary',
+                    'url': 'http://localhost:8080/api/v1/',
+                    'source_domain': 'gomunime.co',
+                    'priority': 500,
                     'is_active': True
                 }
             ]
@@ -161,7 +154,7 @@ def update_site_configuration():
         configs = [
             {
                 'key': 'default_source_domain',
-                'value': 'v1.samehadaku.how',
+                'value': 'gomunime.co',
                 'description': 'Default source domain for fallback'
             },
             {

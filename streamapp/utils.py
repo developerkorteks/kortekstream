@@ -29,32 +29,45 @@ def get_current_source_domain() -> str:
         return SiteConfiguration.get_current_source_domain_sync()
     except Exception as e:
         logger.error(f"Error getting source domain from SiteConfiguration: {e}")
-        return "v1.samehadaku.how"  # Final fallback
+        return "gomunime.co"  # Final fallback
 
 async def get_current_source_domain_async() -> str:
     """
-    Async version of get_current_source_domain.
+    Get current source domain asynchronously.
     
     Returns:
         str: Current source domain
     """
     try:
-        # Try to get from active API endpoint first
-        active_endpoint = await sync_to_async(APIEndpoint.objects.filter)(is_active=True)
-        active_endpoint = await sync_to_async(active_endpoint.order_by)('-priority')
-        active_endpoint = await sync_to_async(active_endpoint.first)()
+        from .models import APIEndpoint, SiteConfiguration
+        from asgiref.sync import sync_to_async
         
-        if active_endpoint and active_endpoint.source_domain:
-            return active_endpoint.source_domain
+        # Try to get from APIEndpoint first
+        try:
+            active_endpoint = await sync_to_async(APIEndpoint.objects.filter)(is_active=True)
+            active_endpoint = await sync_to_async(active_endpoint.order_by)('-priority')
+            active_endpoint = await sync_to_async(active_endpoint.first)()
+            
+            if active_endpoint and active_endpoint.source_domain:
+                return active_endpoint.source_domain
+        except Exception as e:
+            logger.error(f"Error getting source domain from API endpoint: {e}")
+        
+        # Fallback to SiteConfiguration
+        try:
+            config = await sync_to_async(SiteConfiguration.objects.get)(key='SOURCE_DOMAIN', is_active=True)
+            return config.value
+        except SiteConfiguration.DoesNotExist:
+            logger.warning("SOURCE_DOMAIN configuration not found")
+        except Exception as e:
+            logger.error(f"Error getting source domain from SiteConfiguration: {e}")
+        
+        # Final fallback
+        return "gomunime.co"
+        
     except Exception as e:
-        logger.error(f"Error getting source domain from API endpoint: {e}")
-    
-    # Fallback to SiteConfiguration
-    try:
-        return await SiteConfiguration.get_current_source_domain()
-    except Exception as e:
-        logger.error(f"Error getting source domain from SiteConfiguration: {e}")
-        return "v1.samehadaku.how"  # Final fallback
+        logger.error(f"Error in get_current_source_domain_async: {e}")
+        return "gomunime.co"
 
 def build_dynamic_url(path: str, domain: Optional[str] = None) -> str:
     """

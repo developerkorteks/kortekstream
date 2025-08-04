@@ -40,6 +40,45 @@ class APIEndpoint(models.Model):
         # Hapus cache untuk daftar API endpoints
         cache.delete("api_endpoints")
         cache.delete("template_filter_source_domain")
+        cache.delete("current_source_domain")
+        # Clear all API-related caches
+        self._clear_all_api_cache()
+    
+    def delete(self, *args, **kwargs):
+        """
+        Override delete method untuk membersihkan cache saat endpoint dihapus.
+        """
+        # Clear all caches before deletion
+        self._clear_all_api_cache()
+        super().delete(*args, **kwargs)
+    
+    def _clear_all_api_cache(self):
+        """
+        Membersihkan semua cache yang terkait dengan API endpoints.
+        """
+        from django.core.cache import cache
+        
+        # Clear specific API caches
+        cache_keys = [
+            "api_endpoints",
+            "template_filter_source_domain", 
+            "current_source_domain",
+            "api_response_*",
+            "view_cache_*",
+            "get_api_endpoints",
+            "get_current_source_domain"
+        ]
+        
+        # Clear specific keys
+        for key in cache_keys:
+            if key.endswith('*'):
+                # Handle wildcard keys
+                continue
+            cache.delete(key)
+        
+        # Clear all cache if needed
+        cache.clear()
+        logger.info(f"Cleared all API cache for endpoint: {self.name}")
     
     @classmethod
     def get_active_endpoints(cls):
@@ -67,6 +106,17 @@ class APIEndpoint(models.Model):
             return []
     
     @classmethod
+    def force_refresh_cache(cls):
+        """
+        Memaksa refresh cache untuk semua endpoint.
+        """
+        cache.delete("api_endpoints")
+        cache.delete("template_filter_source_domain")
+        cache.delete("current_source_domain")
+        cache.clear()
+        logger.info("Forced refresh of all API endpoint caches")
+    
+    @classmethod
     def get_current_source_domain(cls):
         """
         Mendapatkan domain sumber data dari endpoint yang sedang aktif.
@@ -84,7 +134,31 @@ class APIEndpoint(models.Model):
             # Use sync version for sync context
             return SiteConfiguration.get_current_source_domain_sync()
         except:
-            return "v1.samehadaku.how"  # Fallback terakhir
+            return "gomunime.co"  # Fallback terakhir
+    
+    @classmethod
+    async def get_current_source_domain_async(cls):
+        """
+        Async version untuk mendapatkan domain sumber data.
+        """
+        from asgiref.sync import sync_to_async
+        
+        try:
+            # Ambil endpoint dengan prioritas tertinggi yang aktif
+            active_endpoint = await sync_to_async(cls.objects.filter)(is_active=True)
+            active_endpoint = await sync_to_async(active_endpoint.order_by)('-priority')
+            active_endpoint = await sync_to_async(active_endpoint.first)()
+            
+            if active_endpoint and active_endpoint.source_domain:
+                return active_endpoint.source_domain
+        except Exception as e:
+            logger.error(f"Error getting current source domain (async): {e}")
+        
+        # Fallback ke konfigurasi default
+        try:
+            return await SiteConfiguration.get_current_source_domain_async()
+        except:
+            return "gomunime.co"  # Fallback terakhir
 
 
 class APIMonitor(models.Model):
@@ -331,7 +405,32 @@ class SiteConfiguration(models.Model):
             config = cls.objects.get(key='SOURCE_DOMAIN', is_active=True)
             return config.value
         except cls.DoesNotExist:
-            return "v1.samehadaku.how"  # Fallback terakhir
+            return "gomunime.co"  # Fallback terakhir
+    
+    @classmethod
+    async def get_current_source_domain_async(cls):
+        """
+        Async version untuk mendapatkan domain sumber data.
+        """
+        from asgiref.sync import sync_to_async
+        
+        try:
+            # Ambil endpoint dengan prioritas tertinggi yang aktif
+            active_endpoint = await sync_to_async(APIEndpoint.objects.filter)(is_active=True)
+            active_endpoint = await sync_to_async(active_endpoint.order_by)('-priority')
+            active_endpoint = await sync_to_async(active_endpoint.first)()
+            
+            if active_endpoint and active_endpoint.source_domain:
+                return active_endpoint.source_domain
+        except Exception as e:
+            logger.error(f"Error getting current source domain (async): {e}")
+        
+        # Fallback ke konfigurasi default
+        try:
+            config = await sync_to_async(cls.objects.get)(key='SOURCE_DOMAIN', is_active=True)
+            return config.value
+        except cls.DoesNotExist:
+            return "gomunime.co"  # Fallback terakhir
 
 
 class Advertisement(models.Model):

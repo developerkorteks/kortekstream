@@ -19,7 +19,7 @@ class StreamappConfig(AppConfig):
         
         try:
             # Isi cache untuk SOURCE_DOMAIN
-            source_domain = AsyncToSync(SiteConfiguration.get_config)('SOURCE_DOMAIN', 'v1.samehadaku.how')
+            source_domain = AsyncToSync(SiteConfiguration.get_config)('SOURCE_DOMAIN', 'gomunime.co')
             cache.set('template_filter_source_domain', source_domain, 60*60*24)  # Cache selama 24 jam
             logger.info(f"Cache filled with SOURCE_DOMAIN: {source_domain}")
             
