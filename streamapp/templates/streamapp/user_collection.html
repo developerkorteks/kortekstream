@@ -129,6 +129,13 @@
         </div>
     </div>
     <script>
+    // Set current API source information for dynamic API support
+    window.currentAPISource = {
+        name: '{{ api_source.name|default:"Default API" }}',
+        domain: '{{ api_source.domain|default:"gomunime.co" }}',
+        endpoint: '{{ api_source.endpoint|default:"https://api.gomunime.co/api/v1" }}'
+    };
+    
     document.addEventListener('DOMContentLoaded', function() {
         // Tab functionality
         const tabButtons = document.querySelectorAll('[data-tabs-target]');
@@ -165,7 +172,7 @@
         // Load data from localStorage
         loadWatchlist();
         loadFavorites();
-        loadHistory();
+        loadHistory(); // This is now async
         
         // Add event listeners for clear buttons
         document.getElementById('clear-watchlist').addEventListener('click', clearWatchlist);
@@ -341,6 +348,49 @@
         }
     }
     
+    // Helper functions for dynamic API support
+    function buildEpisodeURL(episodeSlug, sourceDomain = null) {
+        if (!episodeSlug) return '';
+        
+        const normalizedSlug = normalizeEpisodeSlug(episodeSlug, sourceDomain);
+        
+        if (!sourceDomain) {
+            // Try to get from current API source
+            return `/episode/${normalizedSlug}`;
+        }
+        
+        // Ensure domain doesn't have protocol
+        const cleanDomain = sourceDomain.replace(/^https?:\/\//, '');
+        
+        return `https://${cleanDomain}/${normalizedSlug}`;
+    }
+    
+    function normalizeEpisodeSlug(episodeSlug, sourceDomain = null) {
+        if (!episodeSlug) return '';
+        
+        let normalized = episodeSlug;
+        
+        // Remove protocol and domain if present
+        normalized = normalized.replace(/^https?:\/\/[^\/]+\//, '');
+        
+        // Remove episode prefix if present
+        normalized = normalized.replace(/^\/?episode\//, '');
+        
+        // Handle specific domain formats
+        if (sourceDomain) {
+            const domainRegex = new RegExp(`^${sourceDomain.replace(/\./g, '\\.')}\/?`, 'i');
+            normalized = normalized.replace(domainRegex, '');
+        }
+        
+        // Handle common URL patterns
+        normalized = normalized.replace(/^https:[^/]+/, ''); // Handle malformed URLs
+        
+        // Remove trailing slash
+        normalized = normalized.replace(/\/$/, '');
+        
+        return normalized;
+    }
+    
     // History Functions
     function getWatchHistory() {
         try {
@@ -352,7 +402,7 @@
         }
     }
     
-    function loadHistory() {
+    async function loadHistory() {
         const container = document.getElementById('history-container');
         const history = getWatchHistory();
         
@@ -367,69 +417,8 @@
             return;
         }
         
-        // Verifikasi bahwa riwayat sudah dideduplikasi oleh history.js
-        // Hitung jumlah episodeSlug unik
-        const episodeSlugs = new Set();
-        history.forEach(item => {
-            // Normalisasi episodeSlug untuk penanganan domain yang berubah
-            let normalizedSlug = item.episodeSlug || '';
-            
-            // Hapus prefix /episode/ jika ada
-            normalizedSlug = normalizedSlug.replace(/^\/episode\//, '');
-            
-            // Tangani kasus URL dengan format yang salah (https:domain tanpa //)
-            if (normalizedSlug.match(/^https:[^/]+/)) {
-                normalizedSlug = normalizedSlug.replace(/^https:[^/]+/, '');
-            }
-            
-            // Hapus domain lainnya jika ada
-            normalizedSlug = normalizedSlug.replace(/^https?:\/\/[^\/]+\//, '');
-            
-            episodeSlugs.add(normalizedSlug);
-        });
-        
-        console.log(`Verifikasi deduplikasi: ${history.length} item, ${episodeSlugs.size} episodeSlug unik`);
-        
-        // Jika jumlah item tidak sama dengan jumlah episodeSlug unik, masih ada duplikasi
-        if (history.length !== episodeSlugs.size) {
-            console.warn(`Masih ada duplikasi dalam riwayat: ${history.length - episodeSlugs.size} item duplikat`);
-            
-            // Deduplikasi lagi sebagai fallback
-            let uniqueHistoryArray = [];
-            const seenSlugs = new Set();
-            
-            history.forEach(item => {
-                // Normalisasi episodeSlug untuk penanganan domain yang berubah
-                let normalizedSlug = item.episodeSlug || '';
-                
-                // Hapus prefix /episode/ jika ada
-                normalizedSlug = normalizedSlug.replace(/^\/episode\//, '');
-                
-                // Tangani kasus URL dengan format yang salah (https:domain tanpa //)
-                if (normalizedSlug.match(/^https:[^/]+/)) {
-                    normalizedSlug = normalizedSlug.replace(/^https:[^/]+/, '');
-                }
-                
-                // Hapus domain lainnya jika ada
-                normalizedSlug = normalizedSlug.replace(/^https?:\/\/[^\/]+\//, '');
-                
-                if (!seenSlugs.has(normalizedSlug)) {
-                    seenSlugs.add(normalizedSlug);
-                    uniqueHistoryArray.push(item);
-                }
-            });
-            
-            console.log(`Deduplikasi fallback: ${history.length} item -> ${uniqueHistoryArray.length} item unik`);
-            
-            // Simpan kembali history yang sudah dideduplikasi
-            localStorage.setItem('kortekstream_history', JSON.stringify(uniqueHistoryArray));
-            
-            // Gunakan history yang sudah dideduplikasi
-            history = uniqueHistoryArray;
-        }
-        
         let html = '';
-        console.log("Memuat riwayat tontonan dengan jumlah item:", history.length);
+        console.log("Memuat riwayat tontonan dengan dukungan API dinamis, jumlah item:", history.length);
         
         // Log beberapa item pertama untuk debugging
         if (history.length > 0) {
@@ -439,12 +428,16 @@
                 slug: history[0].slug,
                 episodeSlug: history[0].episodeSlug,
                 cover: history[0].cover,
-                watchedAt: history[0].watchedAt
+                watchedAt: history[0].watchedAt,
+                apiSource: history[0].apiSource
             });
         }
         
-        history.forEach(item => {
-            // Verifikasi dan perbaiki URL gambar sampul
+        for (const item of history) {
+            // Build episode URL using current API source
+            const episodeURL = buildEpisodeURL(item.episodeSlug, item.apiSource?.domain);
+            
+            // Verify and fix cover URL
             let coverUrl = verifyAndFixCoverUrl(item.cover, item.title);
             
             // Log untuk verifikasi
@@ -455,12 +448,11 @@
             }
             
             // Simpan URL yang sudah diperbaiki kembali ke item
-            // Ini membantu jika item ini digunakan kembali di tempat lain
             item.cover = coverUrl;
             
             html += `
                 <div class="anime-card dynamic-border light-bg rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 light-border">
-                    <a href="/episode/${item.episodeSlug}" class="block" onclick="console.log('Navigasi riwayat ke episode: ' + (this.href || window.location.origin + '/episode/' + item.episodeSlug))">
+                    <a href="${episodeURL}" class="block" onclick="console.log('Navigasi riwayat ke episode: ' + (this.href || window.location.origin + '${episodeURL}'))">
                         <div class="relative pb-[140%] overflow-hidden">
                             <img src="${coverUrl}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='{% static 'img/kortekstream-logo.png' %}'; console.log('Gambar sampul gagal dimuat, menggunakan default:', this.alt);">
                             
@@ -481,11 +473,12 @@
                                     <i class="fas fa-info-circle mr-1"></i>Detail Anime
                                 </a>
                             </div>
+                            ${item.apiSource ? `<div class="text-xs text-gray-400 mt-1">Sumber: ${item.apiSource.name}</div>` : ''}
                         </div>
                     </a>
                 </div>
             `;
-        });
+        }
         
         container.innerHTML = html;
     }

@@ -1,11 +1,93 @@
 /**
  * Watch History functionality for KortekStream
  * Handles storing and retrieving anime watch history data in localStorage
+ * Now supports dynamic APIs and multiple sources
  */
 
 // Constants
 const STORAGE_KEY = 'kortekstream_history';
 const MAX_HISTORY_ITEMS = 100;
+
+/**
+ * Get current API source information
+ * @returns {Object} Current API source info
+ */
+async function getCurrentAPISource() {
+    try {
+        // Try to get from Django context if available
+        if (typeof window.currentAPISource !== 'undefined') {
+            return window.currentAPISource;
+        }
+        
+        // Fallback to default
+        return {
+            name: 'Default API',
+            domain: 'gomunime.co',
+            endpoint: 'https://api.gomunime.co/api/v1'
+        };
+    } catch (error) {
+        console.error('Error getting current API source:', error);
+        return {
+            name: 'Default API',
+            domain: 'gomunime.co',
+            endpoint: 'https://api.gomunime.co/api/v1'
+        };
+    }
+}
+
+/**
+ * Normalize episode slug for different API sources
+ * @param {string} episodeSlug - Raw episode slug
+ * @param {string} sourceDomain - Source domain
+ * @returns {string} Normalized episode slug
+ */
+function normalizeEpisodeSlug(episodeSlug, sourceDomain = null) {
+    if (!episodeSlug) return '';
+    
+    let normalized = episodeSlug;
+    
+    // Remove protocol and domain if present
+    normalized = normalized.replace(/^https?:\/\/[^\/]+\//, '');
+    
+    // Remove episode prefix if present
+    normalized = normalized.replace(/^\/?episode\//, '');
+    
+    // Handle specific domain formats
+    if (sourceDomain) {
+        const domainRegex = new RegExp(`^${sourceDomain.replace(/\./g, '\\.')}\/?`, 'i');
+        normalized = normalized.replace(domainRegex, '');
+    }
+    
+    // Handle common URL patterns
+    normalized = normalized.replace(/^https:[^/]+/, ''); // Handle malformed URLs
+    
+    // Remove trailing slash
+    normalized = normalized.replace(/\/$/, '');
+    
+    return normalized;
+}
+
+/**
+ * Build episode URL for current API source
+ * @param {string} episodeSlug - Episode slug
+ * @param {string} sourceDomain - Source domain
+ * @returns {string} Complete episode URL
+ */
+function buildEpisodeURL(episodeSlug, sourceDomain = null) {
+    if (!episodeSlug) return '';
+    
+    const normalizedSlug = normalizeEpisodeSlug(episodeSlug, sourceDomain);
+    
+    if (!sourceDomain) {
+        // Try to get from current API source
+        return `/episode/${normalizedSlug}`;
+    }
+    
+    // Ensure domain doesn't have protocol
+    const cleanDomain = sourceDomain.replace(/^https?:\/\//, '');
+    
+    return `https://${cleanDomain}/${normalizedSlug}`;
+}
 
 /**
  * Get watch history from localStorage
@@ -22,21 +104,28 @@ function getWatchHistory() {
 }
 
 /**
- * Add anime to watch history
+ * Add anime to watch history with dynamic API support
  * @param {number|null} animeId - Anime ID (optional)
  * @param {string} title - Anime title
  * @param {string} slug - Anime slug
  * @param {string} episodeSlug - Episode slug
  * @param {string} episodeTitle - Episode title
  * @param {string} cover - Anime cover image URL
+ * @param {Object} apiSource - API source information (optional)
  * @returns {boolean} Success status
  */
-function addToWatchHistory(animeId, title, slug, episodeSlug, episodeTitle, cover) {
+async function addToWatchHistory(animeId, title, slug, episodeSlug, episodeTitle, cover, apiSource = null) {
     try {
         console.log("addToWatchHistory dipanggil dengan:", {
             title, slug, episodeSlug, episodeTitle,
-            cover: cover ? (cover.length > 30 ? cover.substring(0, 30) + '...' : cover) : 'undefined'
+            cover: cover ? (cover.length > 30 ? cover.substring(0, 30) + '...' : cover) : 'undefined',
+            apiSource
         });
+        
+        // Get current API source if not provided
+        if (!apiSource) {
+            apiSource = await getCurrentAPISource();
+        }
         
         let history = getWatchHistory();
         
@@ -45,94 +134,75 @@ function addToWatchHistory(animeId, title, slug, episodeSlug, episodeTitle, cove
             history = history.slice(0, MAX_HISTORY_ITEMS - 1);
         }
         
-        // Normalisasi slug dan episodeSlug untuk pencocokan yang lebih baik
-        // Tangani kasus khusus untuk domain yang berubah (https:v1.samehadaku.how)
-        let normalizedEpisodeSlug = episodeSlug;
+        // Normalize slugs for better matching
+        const normalizedEpisodeSlug = normalizeEpisodeSlug(episodeSlug, apiSource.domain);
+        const normalizedAnimeSlug = normalizeEpisodeSlug(slug, apiSource.domain);
         
-        // Hapus prefix /episode/ jika ada
-        normalizedEpisodeSlug = normalizedEpisodeSlug.replace(/^\/episode\//, '');
+        console.log("Slugs dinormalisasi:", {
+            original: { episodeSlug, slug },
+            normalized: { episodeSlug: normalizedEpisodeSlug, slug: normalizedAnimeSlug }
+        });
         
-        // Tangani kasus URL dengan format yang salah (https:v1.samehadaku.how tanpa //)
-        if (normalizedEpisodeSlug.startsWith('https:v1.samehadaku.how')) {
-            normalizedEpisodeSlug = normalizedEpisodeSlug.replace('https:v1.samehadaku.how', '');
-        }
-        
-        // Hapus domain lainnya jika ada
-        normalizedEpisodeSlug = normalizedEpisodeSlug.replace(/^https?:\/\/[^\/]+\//, '');
-        
-        console.log("episodeSlug dinormalisasi:", episodeSlug, "->", normalizedEpisodeSlug);
-        
-        // Normalisasi slug anime juga
-        let normalizedSlug = slug || '';
-        
-        // Hapus prefix /anime/ jika ada
-        normalizedSlug = normalizedSlug.replace(/^\/anime\//, '');
-        
-        // Tangani kasus URL dengan format yang salah (https:v1.samehadaku.how tanpa //)
-        if (normalizedSlug.startsWith('https:v1.samehadaku.how')) {
-            normalizedSlug = normalizedSlug.replace('https:v1.samehadaku.how/anime/', '');
-        }
-        
-        // Hapus domain lainnya jika ada
-        normalizedSlug = normalizedSlug.replace(/^https?:\/\/[^\/]+\/anime\//, '');
-        
-        console.log("slug anime dinormalisasi:", slug, "->", normalizedSlug);
-        
-        // Cek apakah ada entri dengan episodeSlug yang sama (setelah normalisasi)
+        // Check for existing entries with same episode slug (after normalization)
         const existingIndex = history.findIndex(item => {
-            const itemEpisodeSlug = item.episodeSlug.replace(/^\/episode\//, '').replace(/^https?:\/\/[^\/]+\//, '');
-            return itemEpisodeSlug === normalizedEpisodeSlug ||
-                  itemEpisodeSlug.includes(normalizedEpisodeSlug) ||
-                  normalizedEpisodeSlug.includes(itemEpisodeSlug);
+            const itemEpisodeSlug = normalizeEpisodeSlug(item.episodeSlug, item.apiSource?.domain);
+            return itemEpisodeSlug === normalizedEpisodeSlug;
         });
         
         if (existingIndex !== -1) {
             console.log("Entri sudah ada di indeks", existingIndex, "dengan episodeSlug", history[existingIndex].episodeSlug);
-            // Hapus entri yang sudah ada
+            // Remove existing entry
             history.splice(existingIndex, 1);
         }
         
-        // Pastikan cover tidak kosong atau tidak valid
-if (!cover || cover === "undefined" || cover === "N/A" || cover === "-" || cover === "" || cover === "null") {
-console.log("Cover tidak valid, menggunakan default");
-cover = "/static/img/kortekstream-logo.png"; // Gunakan logo default
-}
-
-// Pastikan URL cover valid
-if (cover && !cover.startsWith('http') && !cover.startsWith('/')) {
-console.log("URL cover tidak valid, menggunakan default:", cover);
-cover = "/static/img/kortekstream-logo.png";
-}
-
-// Periksa apakah URL cover menggunakan format yang salah (https:v1.samehadaku.how tanpa //)
-if (cover && cover.startsWith('https:v1.samehadaku.how')) {
-console.log("Format URL cover tidak valid, memperbaiki:", cover);
-cover = cover.replace('https:v1.samehadaku.how', 'https://v1.samehadaku.how');
-}
-
-// Periksa apakah file logo.png ada, jika tidak gunakan kortekstream-logo.png
-if (cover === "/static/img/logo.png") {
-console.log("Menggunakan kortekstream-logo.png sebagai pengganti logo.png");
-cover = "/static/img/kortekstream-logo.png";
-}
+        // Validate and fix cover URL
+        if (!cover || cover === "undefined" || cover === "N/A" || cover === "-" || cover === "" || cover === "null") {
+            console.log("Cover tidak valid, menggunakan default");
+            cover = "/static/img/kortekstream-logo.png";
+        }
+        
+        // Ensure cover URL is valid
+        if (cover && !cover.startsWith('http') && !cover.startsWith('/')) {
+            console.log("URL cover tidak valid, menggunakan default:", cover);
+            cover = "/static/img/kortekstream-logo.png";
+        }
+        
+        // Fix malformed cover URLs
+        if (cover && cover.startsWith('https:v1.samehadaku.how')) {
+            console.log("Format URL cover tidak valid, memperbaiki:", cover);
+            cover = cover.replace('https:v1.samehadaku.how', 'https://v1.samehadaku.how');
+        }
+        
+        // Use kortekstream-logo.png instead of logo.png
+        if (cover === "/static/img/logo.png") {
+            console.log("Menggunakan kortekstream-logo.png sebagai pengganti logo.png");
+            cover = "/static/img/kortekstream-logo.png";
+        }
         
         // Add to beginning of array (most recent first)
-        history.unshift({
+        const historyItem = {
             id: animeId || Date.now(),
             title: title || "Anime Tidak Diketahui",
-            slug: normalizedSlug,
-            episodeSlug: normalizedEpisodeSlug, // Simpan episodeSlug yang sudah dinormalisasi
+            slug: normalizedAnimeSlug,
+            episodeSlug: normalizedEpisodeSlug,
             episodeTitle: episodeTitle || "Episode Tidak Diketahui",
             cover: cover,
-            watchedAt: new Date().toISOString()
-        });
+            watchedAt: new Date().toISOString(),
+            apiSource: {
+                name: apiSource.name || 'Unknown API',
+                domain: apiSource.domain || 'unknown',
+                endpoint: apiSource.endpoint || 'unknown'
+            }
+        };
         
-        // Deduplikasi riwayat berdasarkan episodeSlug
+        history.unshift(historyItem);
+        
+        // Deduplicate history based on normalized episode slug
         const uniqueHistory = [];
         const seenEpisodeSlugs = new Set();
         
         for (const item of history) {
-            const normalizedItemSlug = item.episodeSlug.replace(/^\/episode\//, '').replace(/^https?:\/\/[^\/]+\//, '');
+            const normalizedItemSlug = normalizeEpisodeSlug(item.episodeSlug, item.apiSource?.domain);
             if (!seenEpisodeSlugs.has(normalizedItemSlug)) {
                 seenEpisodeSlugs.add(normalizedItemSlug);
                 uniqueHistory.push(item);
@@ -202,16 +272,11 @@ function getAnimeWatchHistory(animeSlug) {
 }
 
 /**
- * Load watch history into container
+ * Load watch history into container with dynamic API support
  * @param {string} containerId - ID of container element
  */
-/**
- * Fungsi untuk menangani riwayat tontonan yang mengarahkan ke detail episode
- * @param {string} containerId - ID container untuk menampilkan riwayat tontonan
- */
-function loadWatchHistoryToEpisode(containerId = 'history-container') {
-    // Log untuk verifikasi perubahan
-    console.log("Memuat riwayat tontonan dengan link ke detail episode");
+async function loadWatchHistoryToEpisode(containerId = 'history-container') {
+    console.log("Memuat riwayat tontonan dengan dukungan API dinamis");
     
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -224,6 +289,7 @@ function loadWatchHistoryToEpisode(containerId = 'history-container') {
             title: history[0].title,
             slug: history[0].slug,
             episodeSlug: history[0].episodeSlug,
+            apiSource: history[0].apiSource,
             linkDetailEpisode: `/episode/${history[0].episodeSlug}`
         });
     }
@@ -240,13 +306,37 @@ function loadWatchHistoryToEpisode(containerId = 'history-container') {
     }
     
     let html = '';
-    history.forEach(item => {
+    for (const item of history) {
+        // Build episode URL using current API source
+        const episodeURL = buildEpisodeURL(item.episodeSlug, item.apiSource?.domain);
+        
+        // Verify and fix cover URL
+        let coverUrl = item.cover;
+        if (!coverUrl || coverUrl === "undefined" || coverUrl === "N/A" || coverUrl === "-" || coverUrl === "" || coverUrl === "null") {
+            coverUrl = "/static/img/kortekstream-logo.png";
+        }
+        
+        // Ensure cover URL is valid
+        if (coverUrl && !coverUrl.startsWith('http') && !coverUrl.startsWith('/')) {
+            coverUrl = "/static/img/kortekstream-logo.png";
+        }
+        
+        // Fix malformed cover URLs
+        if (coverUrl && coverUrl.startsWith('https:v1.samehadaku.how')) {
+            coverUrl = coverUrl.replace('https:v1.samehadaku.how', 'https://v1.samehadaku.how');
+        }
+        
+        // Use kortekstream-logo.png instead of logo.png
+        if (coverUrl === "/static/img/logo.png") {
+            coverUrl = "/static/img/kortekstream-logo.png";
+        }
+        
         html += `
             <div class="anime-card dynamic-border bg-white dark:bg-darkSecondary rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 dark:border-gray-700">
-                <a href="/episode/${item.episodeSlug}" class="block"
-                   onclick="console.log('Navigasi riwayat ke episode: ' + (this.href || window.location.origin + '/episode/' + item.episodeSlug))">
+                <a href="${episodeURL}" class="block"
+                   onclick="console.log('Navigasi riwayat ke episode: ' + (this.href || window.location.origin + '${episodeURL}'))">
                     <div class="relative pb-[140%] overflow-hidden">
-                        <img src="${item.cover}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='/static/img/kortekstream-logo.png'; console.log('Gambar sampul gagal dimuat, menggunakan default:', this.alt);">
+                        <img src="${coverUrl}" alt="${item.title}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105" onerror="this.src='/static/img/kortekstream-logo.png'; console.log('Gambar sampul gagal dimuat, menggunakan default:', this.alt);">
                         
                         <div class="absolute top-2 right-2 bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded-md">
                             <i class="fas fa-play mr-1"></i> Ditonton
@@ -265,11 +355,12 @@ function loadWatchHistoryToEpisode(containerId = 'history-container') {
                                 <i class="fas fa-info-circle mr-1"></i>Detail Anime
                             </a>
                         </div>
+                        ${item.apiSource ? `<div class="text-xs text-gray-400 mt-1">Sumber: ${item.apiSource.name}</div>` : ''}
                     </div>
                 </a>
             </div>
         `;
-    });
+    }
     
     container.innerHTML = html;
 }
@@ -329,14 +420,14 @@ function showNotification(message) {
 }
 
 /**
- * Track episode clicks to add to watch history
+ * Track episode clicks to add to watch history with dynamic API support
  */
-function trackEpisodeClicks() {
-    // Perbarui selector untuk mencakup format URL baru
+async function trackEpisodeClicks() {
+    // Update selector to include new URL format
     const episodeLinks = document.querySelectorAll('a[href*="detail_episode_video"], a[href*="episode/"]');
     
     episodeLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
+        link.addEventListener('click', async function(e) {
             // Get anime info from closest parent
             const card = this.closest('.anime-card');
             if (card) {
@@ -348,13 +439,13 @@ function trackEpisodeClicks() {
                     const cover = coverEl.src;
                     const href = this.getAttribute('href');
                     
-                    // Ekstrak episodeSlug dari URL
+                    // Extract episodeSlug from URL
                     let episodeSlug;
                     if (href.includes('detail_episode_video')) {
-                        // Format URL lama
+                        // Old URL format
                         episodeSlug = href.split('/').pop();
                     } else if (href.includes('episode/')) {
-                        // Format URL baru
+                        // New URL format
                         episodeSlug = href.replace(/^.*episode\//, '').replace(/\/$/, '');
                     } else {
                         episodeSlug = href.split('/').pop();
@@ -375,8 +466,11 @@ function trackEpisodeClicks() {
                         }
                     }
                     
-                    console.log(`Menambahkan ke riwayat tontonan: ${episodeTitle} (${episodeSlug}), anime: ${animeSlug}`);
-                    addToWatchHistory(null, title, animeSlug, episodeSlug, episodeTitle, cover);
+                    // Get current API source
+                    const apiSource = await getCurrentAPISource();
+                    
+                    console.log(`Menambahkan ke riwayat tontonan: ${episodeTitle} (${episodeSlug}), anime: ${animeSlug}, API: ${apiSource.name}`);
+                    await addToWatchHistory(null, title, animeSlug, episodeSlug, episodeTitle, cover, apiSource);
                 }
             }
         });
@@ -416,5 +510,8 @@ export {
     isInWatchHistory,
     getAnimeWatchHistory,
     loadWatchHistory,
-    trackEpisodeClicks
+    trackEpisodeClicks,
+    getCurrentAPISource,
+    normalizeEpisodeSlug,
+    buildEpisodeURL
 };

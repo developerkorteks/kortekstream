@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Dynamic History System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .history-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Dynamic History System</h1>
+    
+    <div class="test-section info">
+        <h3>Test Setup</h3>
+        <p>This page tests the dynamic history system with API source tracking.</p>
+        <button class="btn-primary" onclick="testAPISource()">Test API Source</button>
+        <button class="btn-primary" onclick="testHistoryStorage()">Test History Storage</button>
+        <button class="btn-primary" onclick="testURLBuilding()">Test URL Building</button>
+        <button class="btn-success" onclick="addTestHistory()">Add Test History</button>
+        <button class="btn-danger" onclick="clearHistory()">Clear History</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Current API Source</h3>
+        <div id="api-source-info"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>History Items</h3>
+        <div id="history-display"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Results</h3>
+        <div id="test-results"></div>
+    </div>
+
+    <script>
+        // Mock API source for testing
+        window.currentAPISource = {
+            name: 'Test API',
+            domain: 'test.example.com',
+            endpoint: 'https://api.test.example.com/api/v1'
+        };
+
+        // Helper functions from history.js
+        function normalizeEpisodeSlug(episodeSlug, sourceDomain = null) {
+            if (!episodeSlug) return '';
+            
+            let normalized = episodeSlug;
+            
+            // Remove protocol and domain if present
+            normalized = normalized.replace(/^https?:\/\/[^\/]+\//, '');
+            
+            // Remove episode prefix if present
+            normalized = normalized.replace(/^\/?episode\//, '');
+            
+            // Handle specific domain formats
+            if (sourceDomain) {
+                const domainRegex = new RegExp(`^${sourceDomain.replace(/\./g, '\\.')}\/?`, 'i');
+                normalized = normalized.replace(domainRegex, '');
+            }
+            
+            // Handle common URL patterns
+            normalized = normalized.replace(/^https:[^/]+/, ''); // Handle malformed URLs
+            
+            // Remove trailing slash
+            normalized = normalized.replace(/\/$/, '');
+            
+            return normalized;
+        }
+
+        function buildEpisodeURL(episodeSlug, sourceDomain = null) {
+            if (!episodeSlug) return '';
+            
+            const normalizedSlug = normalizeEpisodeSlug(episodeSlug, sourceDomain);
+            
+            if (!sourceDomain) {
+                // Try to get from current API source
+                return `/episode/${normalizedSlug}`;
+            }
+            
+            // Ensure domain doesn't have protocol
+            const cleanDomain = sourceDomain.replace(/^https?:\/\//, '');
+            
+            return `https://${cleanDomain}/${normalizedSlug}`;
+        }
+
+        function getWatchHistory() {
+            try {
+                const history = localStorage.getItem('kortekstream_history');
+                return history ? JSON.parse(history) : [];
+            } catch (error) {
+                console.error('Error getting watch history:', error);
+                return [];
+            }
+        }
+
+        async function addToWatchHistory(animeId, title, slug, episodeSlug, episodeTitle, cover, apiSource = null) {
+            try {
+                console.log("addToWatchHistory dipanggil dengan:", {
+                    title, slug, episodeSlug, episodeTitle,
+                    cover: cover ? (cover.length > 30 ? cover.substring(0, 30) + '...' : cover) : 'undefined',
+                    apiSource
+                });
+                
+                // Get current API source if not provided
+                if (!apiSource) {
+                    apiSource = window.currentAPISource;
+                }
+                
+                let history = getWatchHistory();
+                
+                // Limit history to 100 items
+                if (history.length >= 100) {
+                    history = history.slice(0, 99);
+                }
+                
+                // Normalize slugs for better matching
+                const normalizedEpisodeSlug = normalizeEpisodeSlug(episodeSlug, apiSource.domain);
+                const normalizedAnimeSlug = normalizeEpisodeSlug(slug, apiSource.domain);
+                
+                console.log("Slugs dinormalisasi:", {
+                    original: { episodeSlug, slug },
+                    normalized: { episodeSlug: normalizedEpisodeSlug, slug: normalizedAnimeSlug }
+                });
+                
+                // Check for existing entries with same episode slug (after normalization)
+                const existingIndex = history.findIndex(item => {
+                    const itemEpisodeSlug = normalizeEpisodeSlug(item.episodeSlug, item.apiSource?.domain);
+                    return itemEpisodeSlug === normalizedEpisodeSlug;
+                });
+                
+                if (existingIndex !== -1) {
+                    console.log("Entri sudah ada di indeks", existingIndex, "dengan episodeSlug", history[existingIndex].episodeSlug);
+                    // Remove existing entry
+                    history.splice(existingIndex, 1);
+                }
+                
+                // Add to beginning of array (most recent first)
+                const historyItem = {
+                    id: animeId || Date.now(),
+                    title: title || "Anime Tidak Diketahui",
+                    slug: normalizedAnimeSlug,
+                    episodeSlug: normalizedEpisodeSlug,
+                    episodeTitle: episodeTitle || "Episode Tidak Diketahui",
+                    cover: cover || "/static/img/kortekstream-logo.png",
+                    watchedAt: new Date().toISOString(),
+                    apiSource: {
+                        name: apiSource.name || 'Unknown API',
+                        domain: apiSource.domain || 'unknown',
+                        endpoint: apiSource.endpoint || 'unknown'
+                    }
+                };
+                
+                history.unshift(historyItem);
+                
+                // Deduplicate history based on normalized episode slug
+                const uniqueHistory = [];
+                const seenEpisodeSlugs = new Set();
+                
+                for (const item of history) {
+                    const normalizedItemSlug = normalizeEpisodeSlug(item.episodeSlug, item.apiSource?.domain);
+                    if (!seenEpisodeSlugs.has(normalizedItemSlug)) {
+                        seenEpisodeSlugs.add(normalizedItemSlug);
+                        uniqueHistory.push(item);
+                    }
+                }
+                
+                console.log(`Deduplikasi: ${history.length} item -> ${uniqueHistory.length} item unik`);
+                
+                localStorage.setItem('kortekstream_history', JSON.stringify(uniqueHistory));
+                console.log("Riwayat disimpan, jumlah item:", uniqueHistory.length);
+                return true;
+            } catch (error) {
+                console.error('Error adding to watch history:', error);
+                return false;
+            }
+        }
+
+        function testAPISource() {
+            const results = document.getElementById('test-results');
+            results.innerHTML = '<div class="success">Testing API Source...</div>';
+            
+            console.log('Current API Source:', window.currentAPISource);
+            
+            const apiInfo = document.getElementById('api-source-info');
+            apiInfo.innerHTML = `
+                <p><strong>Name:</strong> ${window.currentAPISource.name}</p>
+                <p><strong>Domain:</strong> ${window.currentAPISource.domain}</p>
+                <p><strong>Endpoint:</strong> ${window.currentAPISource.endpoint}</p>
+            `;
+            
+            results.innerHTML = '<div class="success">✅ API Source test completed successfully!</div>';
+        }
+
+        function testHistoryStorage() {
+            const results = document.getElementById('test-results');
+            results.innerHTML = '<div class="info">Testing History Storage...</div>';
+            
+            const history = getWatchHistory();
+            console.log('Current history:', history);
+            
+            results.innerHTML = `<div class="success">✅ History Storage test completed! Found ${history.length} items.</div>`;
+        }
+
+        function testURLBuilding() {
+            const results = document.getElementById('test-results');
+            results.innerHTML = '<div class="info">Testing URL Building...</div>';
+            
+            const testCases = [
+                { slug: 'one-piece-episode-1', domain: 'test.example.com' },
+                { slug: 'https://test.example.com/one-piece-episode-1', domain: 'test.example.com' },
+                { slug: '/episode/one-piece-episode-1', domain: null },
+                { slug: 'https:v1.samehadaku.how/one-piece-episode-1', domain: 'v1.samehadaku.how' }
+            ];
+            
+            let testResults = '<div class="success">URL Building Test Results:</div>';
+            
+            testCases.forEach((testCase, index) => {
+                const normalized = normalizeEpisodeSlug(testCase.slug, testCase.domain);
+                const builtURL = buildEpisodeURL(testCase.slug, testCase.domain);
+                
+                testResults += `
+                    <div style="margin: 10px 0; padding: 10px; border: 1px solid #ddd;">
+                        <strong>Test ${index + 1}:</strong><br>
+                        Input: ${testCase.slug}<br>
+                        Domain: ${testCase.domain || 'null'}<br>
+                        Normalized: ${normalized}<br>
+                        Built URL: ${builtURL}
+                    </div>
+                `;
+            });
+            
+            results.innerHTML = testResults;
+        }
+
+        async function addTestHistory() {
+            const results = document.getElementById('test-results');
+            results.innerHTML = '<div class="info">Adding test history...</div>';
+            
+            const testData = [
+                {
+                    title: 'One Piece',
+                    slug: 'one-piece',
+                    episodeSlug: 'one-piece-episode-1',
+                    episodeTitle: 'Episode 1 - Saya Adalah Luffy!',
+                    cover: 'https://example.com/cover1.jpg'
+                },
+                {
+                    title: 'Naruto',
+                    slug: 'naruto',
+                    episodeSlug: 'https://v1.samehadaku.how/naruto-episode-1',
+                    episodeTitle: 'Episode 1 - Naruto Uzumaki Datang!',
+                    cover: 'https://example.com/cover2.jpg'
+                }
+            ];
+            
+            for (const data of testData) {
+                await addToWatchHistory(
+                    null,
+                    data.title,
+                    data.slug,
+                    data.episodeSlug,
+                    data.episodeTitle,
+                    data.cover,
+                    window.currentAPISource
+                );
+            }
+            
+            displayHistory();
+            results.innerHTML = '<div class="success">✅ Test history added successfully!</div>';
+        }
+
+        function clearHistory() {
+            localStorage.removeItem('kortekstream_history');
+            displayHistory();
+            document.getElementById('test-results').innerHTML = '<div class="success">✅ History cleared!</div>';
+        }
+
+        function displayHistory() {
+            const history = getWatchHistory();
+            const display = document.getElementById('history-display');
+            
+            if (history.length === 0) {
+                display.innerHTML = '<p>No history items found.</p>';
+                return;
+            }
+            
+            let html = '';
+            history.forEach((item, index) => {
+                const episodeURL = buildEpisodeURL(item.episodeSlug, item.apiSource?.domain);
+                html += `
+                    <div class="history-item">
+                        <h4>${item.title} - ${item.episodeTitle}</h4>
+                        <p><strong>Slug:</strong> ${item.slug}</p>
+                        <p><strong>Episode Slug:</strong> ${item.episodeSlug}</p>
+                        <p><strong>Episode URL:</strong> <a href="${episodeURL}" target="_blank">${episodeURL}</a></p>
+                        <p><strong>API Source:</strong> ${item.apiSource?.name || 'Unknown'}</p>
+                        <p><strong>Domain:</strong> ${item.apiSource?.domain || 'Unknown'}</p>
+                        <p><strong>Watched:</strong> ${new Date(item.watchedAt).toLocaleString()}</p>
+                    </div>
+                `;
+            });
+            
+            display.innerHTML = html;
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            testAPISource();
+            displayHistory();
+        });
+    </script>
+</body>
+</html> 

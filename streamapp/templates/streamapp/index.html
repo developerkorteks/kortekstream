@@ -426,6 +426,13 @@
     </style>
     <!-- JavaScript for Hero Carousel and Local Storage Features -->
     <script>
+    // Set current API source information for dynamic API support
+    window.currentAPISource = {
+        name: '{{ api_source.name|default:"Default API" }}',
+        domain: '{{ api_source.domain|default:"gomunime.co" }}',
+        endpoint: '{{ api_source.endpoint|default:"https://api.gomunime.co/api/v1" }}'
+    };
+    
     // Hero Carousel Auto-Slide
     document.addEventListener('DOMContentLoaded', function() {
         const slides = document.querySelectorAll('.hero-slide');

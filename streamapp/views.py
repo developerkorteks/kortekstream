@@ -346,13 +346,41 @@ async def index(request):
             logger.warning(f"Data home bukan dictionary: {type(home_data)}")
             raise Exception(f"Data home bukan dictionary: {type(home_data)}")
         
+        # Get current API source information
+        try:
+            current_endpoint = await sync_to_async(APIEndpoint.objects.filter)(is_active=True)
+            current_endpoint = await sync_to_async(current_endpoint.order_by)('-priority')
+            current_endpoint = await sync_to_async(current_endpoint.first)()
+            
+            if current_endpoint:
+                api_source = {
+                    'name': current_endpoint.name,
+                    'domain': current_endpoint.source_domain,
+                    'endpoint': current_endpoint.url
+                }
+            else:
+                # Fallback to default
+                api_source = {
+                    'name': 'Default API',
+                    'domain': 'gomunime.co',
+                    'endpoint': 'https://api.gomunime.co/api/v1'
+                }
+        except Exception as e:
+            logger.error(f"Error getting current API endpoint: {e}")
+            api_source = {
+                'name': 'Default API',
+                'domain': 'gomunime.co',
+                'endpoint': 'https://api.gomunime.co/api/v1'
+            }
+        
         # Buat context untuk template
         context = {
             'anime_terbaru': home_data.get('new_eps', []),
             'movie': home_data.get('movies', []),
             'anime_mingguan': home_data.get('top10', []),
             'jadwal_rilis': home_data.get('jadwal_rilis', {}),
-            'days_of_week': ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+            'days_of_week': ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+            'api_source': api_source
         }
         
         # Log jumlah item yang diterima untuk debugging
@@ -929,9 +957,37 @@ async def detail_episode_video(request, episode_slug=None):
             except Exception as ad_error:
                 logger.error(f"Error saat mendapatkan iklan: {ad_error}")
 
+            # Get current API source information
+            try:
+                current_endpoint = await sync_to_async(APIEndpoint.objects.filter)(is_active=True)
+                current_endpoint = await sync_to_async(current_endpoint.order_by)('-priority')
+                current_endpoint = await sync_to_async(current_endpoint.first)()
+                
+                if current_endpoint:
+                    api_source = {
+                        'name': current_endpoint.name,
+                        'domain': current_endpoint.source_domain,
+                        'endpoint': current_endpoint.url
+                    }
+                else:
+                    # Fallback to default
+                    api_source = {
+                        'name': 'Default API',
+                        'domain': 'gomunime.co',
+                        'endpoint': 'https://api.gomunime.co/api/v1'
+                    }
+            except Exception as e:
+                logger.error(f"Error getting current API endpoint: {e}")
+                api_source = {
+                    'name': 'Default API',
+                    'domain': 'gomunime.co',
+                    'endpoint': 'https://api.gomunime.co/api/v1'
+                }
+            
             context = {
                 'episode': episode_data,
-                'ads': ads
+                'ads': ads,
+                'api_source': api_source
             }
 
         response = render(request, 'streamapp/detail_episode_video.html', context)
@@ -1054,8 +1110,42 @@ async def user_collection(request):
     Data disimpan di localStorage di sisi klien, jadi view ini hanya menampilkan template.
     """
     try:
-        # Render template tanpa data khusus
-        return render(request, 'streamapp/user_collection.html')
+        # Get current API source information
+        from .utils import get_current_source_domain_async
+        from .models import APIEndpoint
+        
+        # Get current API endpoint info
+        try:
+            current_endpoint = await sync_to_async(APIEndpoint.objects.filter)(is_active=True)
+            current_endpoint = await sync_to_async(current_endpoint.order_by)('-priority')
+            current_endpoint = await sync_to_async(current_endpoint.first)()
+            
+            if current_endpoint:
+                api_source = {
+                    'name': current_endpoint.name,
+                    'domain': current_endpoint.source_domain,
+                    'endpoint': current_endpoint.url
+                }
+            else:
+                # Fallback to default
+                api_source = {
+                    'name': 'Default API',
+                    'domain': 'gomunime.co',
+                    'endpoint': 'https://api.gomunime.co/api/v1'
+                }
+        except Exception as e:
+            logger.error(f"Error getting current API endpoint: {e}")
+            api_source = {
+                'name': 'Default API',
+                'domain': 'gomunime.co',
+                'endpoint': 'https://api.gomunime.co/api/v1'
+            }
+        
+        context = {
+            'api_source': api_source
+        }
+        
+        return render(request, 'streamapp/user_collection.html', context)
     except Exception as e:
         print(f"Error saat menampilkan koleksi pengguna: {e}")
         return HttpResponse("Terjadi kesalahan saat memuat halaman koleksi pengguna", status=500)
@@ -1067,6 +1157,7 @@ from django.views.generic import TemplateView
 from .tasks import get_api_status_summary
 from streamapp.tasks import check_api_status
 from .models import APIEndpoint, APIMonitor
+from asgiref.sync import sync_to_async
 import json
 
 @method_decorator(staff_member_required, name='dispatch')
